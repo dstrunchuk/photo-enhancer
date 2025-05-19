@@ -127,14 +127,14 @@ button:hover, .download-btn:hover {
 .result-img {
   width: 100%;
   max-width: 100%;
+  max-height: 60vh;
   height: auto;
   border-radius: 16px;
-  object-fit: cover;
+  object-fit: contain;
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.06);
   border: 1px solid #3f3f46;
   margin-bottom: 16px;
 }
-
 .result-img.fade {
   opacity: 0.5;
 }
