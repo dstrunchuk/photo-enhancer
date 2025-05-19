@@ -22,17 +22,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Корневой маршрут (GET)
-@app.get("/")
-async def root():
-    return {
-        "message": "Привет, я улучшаю фотографии с помощью нейросетей — в один клик!",
-        "button": {
-            "text": "Запустить WebApp",
-            "url": "https://photo-enhancer-production.up.railway.app"
-        }
-    }
-
 # Эндпоинт загрузки фото
 @app.post("/upload/")
 async def upload_image(file: UploadFile = File(...)):
