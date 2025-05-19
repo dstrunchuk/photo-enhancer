@@ -111,25 +111,41 @@ button:hover, .download-btn:hover {
 
 .result-content {
   padding-top: 72px;
+  padding-bottom: 120px; /* запас для кнопок снизу */
   width: 100%;
   max-width: 420px;
   margin: 0 auto;
   text-align: center;
+  position: relative;
 }
 
 .result-img {
   width: 100%;
-  max-width: 400px;
+  max-height: 60vh;
+  object-fit: contain;
   border-radius: 16px;
   border: 1px solid #3f3f46;
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.06);
-  object-fit: cover;
-  margin-bottom: 20px;
   transition: opacity 0.2s ease;
 }
 
 .result-img.fade {
   opacity: 0.5;
+}
+
+.result-buttons {
+  position: fixed;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #1c1c1e;
 }
 
 .download-btn {
