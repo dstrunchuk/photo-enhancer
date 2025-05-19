@@ -47,22 +47,24 @@ async def telegram_webhook(request: Request):
     chat_id = message.get("chat", {}).get("id")
 
     if chat_id:
-        await httpx.AsyncClient().post(
-            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-            data={
-                "chat_id": chat_id,
-                "text": "Привет, я улучшаю фотографии с помощью нейросетей — в один клик!",
-                "reply_markup": {
-                    "inline_keyboard": [[
-                        {
-                            "text": "ОТКРЫТЬ",
-                            "web_app": {"url": "https://photo-enhancer-production.up.railway.app"}
-                        }
-                    ]]
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": "Привет, я улучшаю фотографии с помощью нейросетей — в один клик!",
+                    "reply_markup": {
+                        "inline_keyboard": [[
+                            {
+                                "text": "ОТКРЫТЬ",
+                                "web_app": {
+                                    "url": "https://photo-enhancer-production.up.railway.app"
+                                }
+                            }
+                        ]]
+                    }
                 }
-            },
-            headers={"Content-Type": "application/json"}
-        )
+            )
 
     return {"ok": True}
 
