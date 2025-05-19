@@ -3,3 +3,4 @@ uvicorn
 pillow
 python-multipart
 aiofiles
+python-telegram-bot==13.15
