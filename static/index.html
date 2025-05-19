@@ -11,13 +11,67 @@
     <h1>Улучшение Фото</h1>
     <p class="subtitle">AI-ретушь и чёткость в пару касаний</p>
 
-    <input type="file" id="fileInput" accept="image/*">
-    <button onclick="uploadPhoto()">Улучшить</button>
+    <div class="form-block">
+      <label for="fileInput">Фото для улучшения</label>
+      <input type="file" id="fileInput" accept="image/*" onchange="previewPhoto(this)">
+    </div>
 
+    <img id="preview" alt="Превью" style="display:none;">
+
+    <button onclick="uploadPhoto()">Улучшить</button>
     <div id="loading">Обработка...</div>
-    <img id="preview" src="" alt="Результат">
   </div>
 
-  <script src="script.js"></script>
+  <script>
+    async function uploadPhoto() {
+      const input = document.getElementById("fileInput");
+      const loading = document.getElementById("loading");
+      const preview = document.getElementById("preview");
+
+      if (!input.files[0]) {
+        alert("Пожалуйста, выберите фото");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", input.files[0]);
+
+      loading.style.display = "block";
+      preview.style.opacity = "0.5";
+
+      try {
+        const response = await fetch("/upload/", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) throw new Error("Ошибка обработки");
+
+        const blob = await response.blob();
+        const imgUrl = URL.createObjectURL(blob);
+
+        preview.src = imgUrl;
+        preview.style.display = "block";
+        preview.style.opacity = "1";
+      } catch (err) {
+        alert("Ошибка: " + err.message);
+      } finally {
+        loading.style.display = "none";
+      }
+    }
+
+    function previewPhoto(input) {
+      const preview = document.getElementById("preview");
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          preview.style.display = "block";
+          preview.className = "preview-photo";
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+  </script>
 </body>
 </html>
