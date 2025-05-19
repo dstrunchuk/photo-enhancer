@@ -52,7 +52,7 @@ async def telegram_webhook(request: Request):
         chat_id = update.message.chat_id
         if update.message:
             chat_id = update.message.chat_id
-            await BOT.send_message(
+            BOT.send_message(
                 chat_id=chat_id,
                 text="Привет, я улучшаю фотографии с помощью нейросетей — в один клик!",
                 reply_markup=telegram.InlineKeyboardMarkup([[
