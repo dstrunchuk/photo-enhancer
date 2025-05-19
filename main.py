@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from utils.enhancer import enhance_image
+from fastapi.staticfiles import StaticFiles
 import io
 import os
 import telegram
@@ -11,6 +12,7 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 BOT = telegram.Bot(token=TELEGRAM_TOKEN)
 
 app = FastAPI()
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 # Разрешить Telegram WebApp (можно сузить до нужного origin)
 app.add_middleware(
@@ -28,7 +30,7 @@ async def root():
         "message": "Привет, я улучшаю фотографии с помощью нейросетей — в один клик!",
         "button": {
             "text": "Запустить WebApp",
-            "url": "https://your-webapp-url.com"
+            "url": "https://photo-enhancer-production.up.railway.app"
         }
     }
 
@@ -58,7 +60,7 @@ async def telegram_webhook(request: Request):
                 reply_markup=telegram.InlineKeyboardMarkup([[
                     telegram.InlineKeyboardButton(
                         text="Запустить WebApp",
-                        url="https://your-webapp-url.com"
+                        url="https://photo-enhancer-production.up.railway.app"
                     )
                 ]])
             )

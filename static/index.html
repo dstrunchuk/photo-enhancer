@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Улучшить фото</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; padding: 20px; text-align: center; }
+        #preview { max-width: 100%; margin-top: 20px; display: none; }
+        #loading { display: none; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <h2>Загрузите фотографию</h2>
+    <input type="file" id="fileInput" accept="image/*"><br>
+    <button onclick="uploadPhoto()">Улучшить</button>
+
+    <div id="loading">Обработка...</div>
+    <img id="preview" src="" alt="Result">
+
+    <script src="script.js"></script>
+</body>
+</html>
