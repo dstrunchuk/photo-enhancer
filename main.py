@@ -43,21 +43,17 @@ async def upload_image(file: UploadFile = File(...)):
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
-    print("[WEBHOOK] Получен update от Telegram:", data)  # ЛОГ
 
-    chat_id = None
+    try:
+        message = data.get("message", {})
+        chat_id = message.get("chat", {}).get("id")
 
-    # Пытаемся извлечь chat_id из всех возможных источников
-    if "message" in data:
-        chat_id = data["message"]["chat"]["id"]
-    elif "callback_query" in data:
-        chat_id = data["callback_query"]["from"]["id"]
-    elif "my_chat_member" in data:
-        chat_id = data["my_chat_member"]["chat"]["id"]
-    elif "edited_message" in data:
-        chat_id = data["edited_message"]["chat"]["id"]
+        if not chat_id:
+            print("[WEBHOOK] ❌ Chat ID не найден")
+            return {"ok": False}
 
-    if chat_id:
+        print(f"[WEBHOOK] Chat ID: {chat_id}")
+
         async with httpx.AsyncClient() as client:
             await client.post(
                 f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
@@ -76,8 +72,12 @@ async def telegram_webhook(request: Request):
                     }
                 }
             )
-    return {"ok": True}
 
+        return {"ok": True}
+
+    except Exception as e:
+        print("[WEBHOOK ERROR]", str(e))
+        return JSONResponse(status_code=500, content={"error": str(e)})
     
 @app.post("/send_photo_upload")
 async def send_photo_upload(file: UploadFile = File(...), chat_id: int = Form(...)):
