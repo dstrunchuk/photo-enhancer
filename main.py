@@ -43,6 +43,7 @@ async def upload_image(file: UploadFile = File(...)):
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
+    print("[WEBHOOK] Получен update от Telegram:", data)  # ЛОГ
 
     chat_id = None
 
@@ -75,7 +76,6 @@ async def telegram_webhook(request: Request):
                     }
                 }
             )
-    print("[webhook] update:", data)
     return {"ok": True}
 
     
