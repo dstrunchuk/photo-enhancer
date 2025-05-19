@@ -43,22 +43,26 @@ async def upload_image(file: UploadFile = File(...)):
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
-    update = telegram.Update.de_json(data, BOT)
+    message = data.get("message", {})
+    chat_id = message.get("chat", {}).get("id")
 
-    if update.message:
-        chat_id = update.message.chat_id
-        if update.message:
-            chat_id = update.message.chat_id
-            BOT.send_message(
-                chat_id=chat_id,
-                text="Привет, я улучшаю фотографии с помощью нейросетей — в один клик!",
-                reply_markup = InlineKeyboardMarkup([[
-                    InlineKeyboardButton(
-                        text="ОТКРЫТЬ",
-                        web_app=WebAppInfo(url="https://photo-enhancer-production.up.railway.app")
-                    )
-                ]])
-            )
+    if chat_id:
+        await httpx.AsyncClient().post(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+            data={
+                "chat_id": chat_id,
+                "text": "Привет, я улучшаю фотографии с помощью нейросетей — в один клик!",
+                "reply_markup": {
+                    "inline_keyboard": [[
+                        {
+                            "text": "ОТКРЫТЬ",
+                            "web_app": {"url": "https://photo-enhancer-production.up.railway.app"}
+                        }
+                    ]]
+                }
+            },
+            headers={"Content-Type": "application/json"}
+        )
 
     return {"ok": True}
 
