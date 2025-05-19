@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Улучшение Фото</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="container">
@@ -16,13 +16,26 @@
       <input type="file" id="fileInput" accept="image/*" onchange="previewPhoto(this)">
     </div>
 
-    <img id="preview" alt="Превью" style="display:none;">
+    <img id="preview" alt="Превью" style="display: none;" />
 
     <button onclick="uploadPhoto()">Улучшить</button>
-    <div id="loading">Обработка...</div>
+    <div id="loading" style="display: none;">Обработка...</div>
   </div>
 
   <script>
+    function previewPhoto(input) {
+      const preview = document.getElementById("preview");
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          preview.style.display = "block";
+          preview.className = "preview-photo";
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
     async function uploadPhoto() {
       const input = document.getElementById("fileInput");
       const loading = document.getElementById("loading");
@@ -33,11 +46,10 @@
         return;
       }
 
+      loading.style.display = "block";
+
       const formData = new FormData();
       formData.append("file", input.files[0]);
-
-      loading.style.display = "block";
-      preview.style.opacity = "0.5";
 
       try {
         const response = await fetch("/upload/", {
@@ -52,24 +64,10 @@
 
         preview.src = imgUrl;
         preview.style.display = "block";
-        preview.style.opacity = "1";
       } catch (err) {
         alert("Ошибка: " + err.message);
       } finally {
         loading.style.display = "none";
-      }
-    }
-
-    function previewPhoto(input) {
-      const preview = document.getElementById("preview");
-      if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          preview.src = e.target.result;
-          preview.style.display = "block";
-          preview.className = "preview-photo";
-        };
-        reader.readAsDataURL(input.files[0]);
       }
     }
   </script>
