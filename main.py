@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from utils.enhancer import enhance_image
 from fastapi.staticfiles import StaticFiles
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from pydantic import BaseModel
+import httpx
 import io
 import os
 import telegram
@@ -22,6 +24,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class PhotoData(BaseModel):
+    chat_id: int
+    photo_url: str
 
 # Эндпоинт загрузки фото
 @app.post("/upload/")
@@ -55,6 +61,20 @@ async def telegram_webhook(request: Request):
             )
 
     return {"ok": True}
+
+@app.post("/send_photo")
+async def send_photo(data: PhotoData):
+    async with httpx.AsyncClient() as client:
+        tg_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
+        response = await client.post(
+            tg_url,
+            data={
+                "chat_id": data.chat_id,
+                "photo": data.photo_url,
+                "caption": "Ваша улучшенная фотография"
+            }
+        )
+    return {"ok": response.status_code == 200}
 
 # Все маршруты зарегистрированы выше
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

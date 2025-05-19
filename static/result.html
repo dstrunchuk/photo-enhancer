@@ -15,7 +15,7 @@
     <img id="toggleImage" src="" alt="Фото" class="result-img" onclick="openFullscreen()" />
     
     <button id="toggleBtn" onclick="toggleImage()">Показать ДО</button>
-    <button class="download-btn" onclick="downloadProcessed()">Скачать фото</button>
+    <button class="download-btn" onclick="sendToTelegram()">Скачать в Telegram</button>
   </div>
 
   <script>
@@ -83,6 +83,31 @@
         })
         .catch(() => {
           alert("Ошибка при скачивании. Возможно, устройство блокирует загрузку.");
+        });
+    }
+    function sendToTelegram() {
+      const photoUrl = sessionStorage.getItem("resultImage");
+      const chatId = Telegram.WebApp.initDataUnsafe.user?.id;
+
+      if (!photoUrl || !chatId) {
+        alert("Ошибка. Telegram ID или фото не найдены.");
+        return;
+      }
+
+      fetch("/send_photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, photo_url: photoUrl })
+      })
+        .then(res => {
+          if (res.ok) {
+            Telegram.WebApp.showAlert("Фото отправлено в Telegram.");
+          } else {
+            Telegram.WebApp.showAlert("Ошибка при отправке.");
+          }
+        })
+        .catch(() => {
+          Telegram.WebApp.showAlert("Не удалось подключиться к серверу.");
         });
     }
   </script>
