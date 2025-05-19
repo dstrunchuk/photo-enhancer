@@ -95,7 +95,9 @@ button:hover, .download-btn:hover {
   top: 0;
   left: 0;
   padding: 16px;
-  z-index: 10;
+  z-index: 100;
+  background-color: #1c1c1e;
+  width: 100%;
 }
 
 .result-topbar button {
@@ -108,14 +110,13 @@ button:hover, .download-btn:hover {
 }
 
 .result-content {
-  padding-top: 64px;
+  padding-top: 72px;
   width: 100%;
   max-width: 420px;
   margin: 0 auto;
   text-align: center;
 }
 
-/* Слайдер сравнения */
 .slider-wrapper {
   position: relative;
   width: 100%;
@@ -149,12 +150,13 @@ button:hover, .download-btn:hover {
 
 #slider {
   position: absolute;
-  bottom: 12px;
+  bottom: 0;
   left: 0;
+  height: 100%;
   width: 100%;
-  z-index: 2;
-  appearance: none;
+  z-index: 10;
   background: transparent;
+  appearance: none;
 }
 
 #slider::-webkit-slider-thumb {
@@ -164,6 +166,7 @@ button:hover, .download-btn:hover {
   background: #a78bfa;
   cursor: pointer;
   border-radius: 2px;
+  box-shadow: 0 0 6px #a78bfa;
 }
 
 #slider::-moz-range-thumb {
