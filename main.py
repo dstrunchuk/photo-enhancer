@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from utils.enhancer import enhance_image
 from fastapi.staticfiles import StaticFiles
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 import io
 import os
 import telegram
@@ -45,10 +46,10 @@ async def telegram_webhook(request: Request):
             BOT.send_message(
                 chat_id=chat_id,
                 text="Привет, я улучшаю фотографии с помощью нейросетей — в один клик!",
-                reply_markup=telegram.InlineKeyboardMarkup([[
-                    telegram.InlineKeyboardButton(
-                        text="Запустить WebApp",
-                        url="https://photo-enhancer-production.up.railway.app"
+                reply_markup = InlineKeyboardMarkup([[
+                    InlineKeyboardButton(
+                        text="ОТКРЫТЬ",
+                        web_app=WebAppInfo(url="https://photo-enhancer-production.up.railway.app")
                     )
                 ]])
             )
