@@ -15,7 +15,7 @@
     <img id="toggleImage" src="" alt="Фото" class="result-img" onclick="openFullscreen()" />
     
     <button id="toggleBtn" onclick="toggleImage()">Показать ДО</button>
-    <a id="downloadBtn" href="#" download="ai-foto.jpg" class="download-btn">Скачать фото</a>
+    <button class="download-btn" onclick="downloadProcessed()">Скачать фото</button>
   </div>
 
   <script>
@@ -46,6 +46,28 @@
     function openFullscreen() {
       const mode = showingAfter ? "after" : "before";
       window.location.href = `fullscreen.html?mode=${mode}`;
+    }
+
+    function downloadProcessed() {
+      const url = sessionStorage.getItem("resultImage");
+      if (!url) {
+        alert("Фото не найдено");
+        return;
+      }
+
+      fetch(url)
+        .then(res => res.blob())
+        .then(blob => {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "ai-foto.jpg";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        })
+        .catch(() => {
+          alert("Ошибка при скачивании");
+        });
     }
   </script>
 </body>
