@@ -12,7 +12,6 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 BOT = telegram.Bot(token=TELEGRAM_TOKEN)
 
 app = FastAPI()
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 # Разрешить Telegram WebApp (можно сузить до нужного origin)
 app.add_middleware(
@@ -66,3 +65,6 @@ async def telegram_webhook(request: Request):
             )
 
     return {"ok": True}
+
+# Все маршруты зарегистрированы выше
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
