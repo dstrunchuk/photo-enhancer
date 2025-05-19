@@ -24,6 +24,7 @@
   </div>
 
   <script>
+    Telegram.WebApp.ready();
     function previewPhoto(input) {
       const preview = document.getElementById("preview");
       if (input.files && input.files[0]) {
