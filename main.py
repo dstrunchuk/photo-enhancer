@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Request
+from fastapi import FastAPI, UploadFile, File, Request, Form
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from utils.enhancer import enhance_image
@@ -62,24 +62,16 @@ async def telegram_webhook(request: Request):
 
     return {"ok": True}
 
-@app.post("/send_photo")
-async def send_photo(data: PhotoData):
-    # Скачиваем изображение
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(data.photo_url)
-            response.raise_for_status()
-        except Exception as e:
-            return JSONResponse(status_code=400, content={"error": "Не удалось получить фото"})
+    
+@app.post("/send_photo_upload")
+async def send_photo_upload(file: UploadFile = File(...), chat_id: int = Form(...)):
+    image_bytes = await file.read()
 
-        image_bytes = response.content
-
-    # Отправляем фото в Telegram
     try:
-        await BOT.send_photo(chat_id=data.chat_id, photo=io.BytesIO(image_bytes))
+        await BOT.send_photo(chat_id=chat_id, photo=io.BytesIO(image_bytes))
         return {"ok": True}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": "Не удалось отправить фото в Telegram"})
+        return JSONResponse(status_code=500, content={"error": "Ошибка Telegram"})
 
 # Все маршруты зарегистрированы выше
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

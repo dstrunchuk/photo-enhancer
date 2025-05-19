@@ -85,30 +85,29 @@
           alert("Ошибка при скачивании. Возможно, устройство блокирует загрузку.");
         });
     }
-    function sendToTelegram() {
-      const photoUrl = sessionStorage.getItem("resultImage");
+    async function sendToTelegram() {
       const chatId = Telegram.WebApp.initDataUnsafe.user?.id;
+      const response = await fetch(sessionStorage.getItem("resultImage"));
+      const blob = await response.blob();
 
-      if (!photoUrl || !chatId) {
-        alert("Ошибка. Telegram ID или фото не найдены.");
-        return;
-      }
+      const formData = new FormData();
+      formData.append("file", blob, "ai-foto.jpg");
+      formData.append("chat_id", chatId);
 
-      fetch("/send_photo", {
+      fetch("/send_photo_upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, photo_url: photoUrl })
+        body: formData
       })
-        .then(res => {
-          if (res.ok) {
-            Telegram.WebApp.showAlert("Фото отправлено в Telegram.");
-          } else {
-            Telegram.WebApp.showAlert("Ошибка при отправке.");
-          }
-        })
-        .catch(() => {
-          Telegram.WebApp.showAlert("Не удалось подключиться к серверу.");
-        });
+      .then(res => {
+        if (res.ok) {
+          Telegram.WebApp.showAlert("Фото отправлено в Telegram.");
+        } else {
+          Telegram.WebApp.showAlert("Ошибка при отправке.");
+        }
+      })
+     .catch(() => {
+        Telegram.WebApp.showAlert("Ошибка соединения.");
+      });
     }
   </script>
 </body>
