@@ -2,22 +2,21 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Улучшить фото</title>
+    <title>AI Фото Улучшение</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: sans-serif; padding: 20px; text-align: center; }
-        #preview { max-width: 100%; margin-top: 20px; display: none; }
-        #loading { display: none; margin-top: 15px; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h2>Загрузите фотографию</h2>
-    <input type="file" id="fileInput" accept="image/*"><br>
-    <button onclick="uploadPhoto()">Улучшить</button>
+    <div class="container">
+        <h1>AI Улучшение Фото</h1>
+        <p class="subtitle">Премиум ретушь и чёткость за 1 клик</p>
 
-    <div id="loading">Обработка...</div>
-    <img id="preview" src="" alt="Result">
+        <input type="file" id="fileInput" accept="image/*">
+        <button onclick="uploadPhoto()">Улучшить</button>
 
+        <div id="loading">Обработка...</div>
+        <img id="preview" src="" alt="Результат">
+    </div>
     <script src="script.js"></script>
 </body>
 </html>
