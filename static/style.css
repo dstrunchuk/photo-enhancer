@@ -1,14 +1,130 @@
+body.premium-bg {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: radial-gradient(circle at top, #1f1f21, #111113);
+  color: #ffffff;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  overflow-y: auto;
+}
 
+.container {
+  width: 100%;
+  max-width: 420px;
+  padding: 24px 20px 40px;
+  margin-top: 12px;
+  text-align: center;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #cfcff1;
+  margin-bottom: 24px;
+}
+
+.form-block {
+  text-align: left;
+  margin-bottom: 16px;
+}
+
+.form-block label {
+  font-size: 13px;
+  color: #aaa;
+  margin-bottom: 6px;
+  display: block;
+}
+
+input[type="file"] {
+  width: 100%;
+  padding: 12px;
+  background-color: #27272a;
+  color: #f4f4f5;
+  border: 1px solid #3f3f46;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+button, .download-btn {
+  width: 100%;
+  padding: 14px;
+  margin-top: 20px;
+  border: none;
+  font-weight: 600;
+  font-size: 15px;
+  background: linear-gradient(to right, #a78bfa, #fbcfe8);
+  color: #000;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+button:hover, .download-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+}
+
+#loading {
+  margin-top: 16px;
+  font-size: 14px;
+  color: #bbb;
+}
+
+.preview-photo {
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: 16px;
+  border: 1px solid #3f3f46;
+  margin-top: 20px;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.06);
+}
+
+.result-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  padding: 16px;
+  z-index: 10;
+}
+
+.result-topbar button {
+  background: none;
+  border: none;
+  color: #a78bfa;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.result-content {
+  padding-top: 64px;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* Слайдер сравнения */
 .slider-wrapper {
   position: relative;
   width: 100%;
   max-width: 400px;
-  height: auto;
-  margin: 0 auto 24px;
   aspect-ratio: 1 / 1;
   overflow: hidden;
   border-radius: 16px;
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.06);
+  margin: 0 auto 24px;
 }
 
 .slider-img {
@@ -43,7 +159,6 @@
 
 #slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  appearance: none;
   width: 4px;
   height: 100%;
   background: #a78bfa;
