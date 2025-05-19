@@ -13,23 +13,35 @@
   </div>
 
   <div class="result-content">
-    <img id="resultImage" src="" alt="Результат" />
+    <div class="slider-wrapper" id="sliderWrapper">
+      <img id="afterImage" class="slider-img" src="" alt="После" />
+      <div id="sliderOverlay">
+        <img id="beforeImage" class="slider-img" src="" alt="До" />
+      </div>
+      <input type="range" min="0" max="100" value="50" id="slider">
+    </div>
+
     <a id="downloadBtn" href="#" download="ai-foto.jpg" class="download-btn">Скачать фото</a>
   </div>
 
   <script>
-    const imageUrl = sessionStorage.getItem("resultImage");
-    const img = document.getElementById("resultImage");
-    const link = document.getElementById("downloadBtn");
+    const afterUrl = sessionStorage.getItem("resultImage");
+    const beforeUrl = sessionStorage.getItem("previewImage");
 
-    if (imageUrl) {
-      img.src = imageUrl;
-      link.href = imageUrl;
-    }
+    document.getElementById("afterImage").src = afterUrl;
+    document.getElementById("beforeImage").src = beforeUrl;
+    document.getElementById("downloadBtn").href = afterUrl;
 
     function goBack() {
       window.location.href = "index.html";
     }
+
+    const slider = document.getElementById("slider");
+    const overlay = document.getElementById("sliderOverlay");
+
+    slider.addEventListener("input", () => {
+      overlay.style.width = slider.value + "%";
+    });
   </script>
 </body>
 </html>
