@@ -1,8 +1,9 @@
-body {
+
+body.premium-bg {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #1c1c1e;
+  font-family: 'Segoe UI', sans-serif;
+  background: radial-gradient(circle at top, #1f1f21, #111113);
   color: #ffffff;
   display: flex;
   justify-content: center;
@@ -12,22 +13,21 @@ body {
 
 .container {
   width: 100%;
-  max-width: 400px;
-  padding: 16px 16px 40px;
-  margin-top: 0;
+  max-width: 420px;
+  padding: 24px 20px 40px;
+  margin-top: 12px;
   text-align: center;
 }
 
-
 h1 {
-  font-size: 22px;
-  font-weight: 600;
-  margin-bottom: 6px;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 4px;
 }
 
 .subtitle {
   font-size: 14px;
-  color: #999;
+  color: #cfcff1;
   margin-bottom: 24px;
 }
 
@@ -37,13 +37,13 @@ h1 {
 }
 
 .form-block label {
-  font-size: 14px;
-  color: #a1a1aa;
-  margin-bottom: 8px;
+  font-size: 13px;
+  color: #aaa;
+  margin-bottom: 6px;
   display: block;
 }
 
-.form-block input[type="file"] {
+input[type="file"] {
   width: 100%;
   padding: 12px;
   background-color: #27272a;
@@ -53,76 +53,42 @@ h1 {
   box-sizing: border-box;
 }
 
-button {
+button, .download-btn {
   width: 100%;
   padding: 14px;
-  margin-top: 16px;
+  margin-top: 20px;
   border: none;
   font-weight: 600;
   font-size: 15px;
   background: linear-gradient(to right, #a78bfa, #fbcfe8);
-  color: #000; /* если хочешь белый — поменяй на #fff */
-  border-radius: 12px;
+  color: #000;
+  border-radius: 14px;
   cursor: pointer;
-  transition: opacity 0.3s ease;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
 }
 
-button:hover {
-  opacity: 0.9;
+button:hover, .download-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
 }
 
 #loading {
   margin-top: 16px;
   font-size: 14px;
-  color: #aaa;
-  position: relative;
+  color: #bbb;
 }
 
-.preview-photo {
+.preview-photo, #resultImage {
   width: 100%;
-  max-height: 300px;
-  object-fit: cover;
-  border-radius: 12px;
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: 16px;
   border: 1px solid #3f3f46;
-  margin: 16px 0;
-}
-
-.result-container {
-  background-color: #1c1c1e;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 56px;
-}
-
-.top-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  background-color: #1c1c1e;
-  border-bottom: 1px solid #333;
-}
-
-.top-bar button,
-.top-bar a {
-  background: none;
-  border: none;
-  color: #a78bfa;
-  font-weight: 600;
-  font-size: 16px;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-#resultImage {
-  max-width: 100%;
-  border-radius: 8px;
-  margin-top: 16px;
+  margin-top: 20px;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.06);
 }
 
 .result-topbar {
@@ -144,29 +110,8 @@ button:hover {
 
 .result-content {
   padding-top: 64px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.result-content img {
-  max-width: 100%;
-  max-height: 60vh;
-  border-radius: 12px;
-  margin-bottom: 20px;
-}
-
-.download-btn {
-  padding: 12px 24px;
-  font-weight: 600;
-  font-size: 15px;
-  background: linear-gradient(to right, #a78bfa, #fbcfe8);
-  color: #000;
-  border-radius: 12px;
-  text-decoration: none;
-  transition: opacity 0.3s;
-}
-
-.download-btn:hover {
-  opacity: 0.9;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  text-align: center;
 }
