@@ -58,15 +58,31 @@
       fetch(url)
         .then(res => res.blob())
         .then(blob => {
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(blob);
-          a.download = "ai-foto.jpg";
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
+          const filename = "ai-foto.jpg";
+
+      // Fallback для старых Android WebView
+          if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+            window.navigator.msSaveOrOpenBlob(blob, filename);
+          } else {
+            const link = document.createElement("a");
+            const blobUrl = window.URL.createObjectURL(blob);
+            link.href = blobUrl;
+            link.download = filename;
+
+        // Пробуем кликнуть
+            try {
+              link.click();
+            } catch {
+              alert("Нажмите и удерживайте фото, чтобы сохранить.");
+              window.open(blobUrl, "_blank");
+            }
+
+        // Чистим
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+          }
         })
         .catch(() => {
-          alert("Ошибка при скачивании");
+          alert("Ошибка при скачивании. Возможно, устройство блокирует загрузку.");
         });
     }
   </script>
