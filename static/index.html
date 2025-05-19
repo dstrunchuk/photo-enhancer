@@ -39,7 +39,6 @@
     async function uploadPhoto() {
       const input = document.getElementById("fileInput");
       const loading = document.getElementById("loading");
-      const preview = document.getElementById("preview");
 
       if (!input.files[0]) {
         alert("Пожалуйста, выберите фото");
@@ -60,10 +59,12 @@
         if (!response.ok) throw new Error("Ошибка обработки");
 
         const blob = await response.blob();
-        const imgUrl = URL.createObjectURL(blob);
+        const imageUrl = URL.createObjectURL(blob);
 
-        preview.src = imgUrl;
-        preview.style.display = "block";
+        // передаём в другую страницу
+        sessionStorage.setItem("resultImage", imageUrl);
+        window.location.href = "result.html";
+
       } catch (err) {
         alert("Ошибка: " + err.message);
       } finally {
