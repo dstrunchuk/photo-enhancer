@@ -81,12 +81,19 @@ async def telegram_webhook(request: Request):
     
 @app.post("/send_photo_upload")
 async def send_photo_upload(file: UploadFile = File(...), chat_id: int = Form(...)):
-    image_bytes = await file.read()
-
     try:
-        await BOT.send_photo(chat_id=chat_id, photo=io.BytesIO(image_bytes))
+        image_bytes = await file.read()
+
+        await BOT.send_document(
+            chat_id=chat_id,
+            document=io.BytesIO(image_bytes),
+            filename="uluchshennoe_foto.jpg",  # задаём имя файла
+            caption="Ваше улучшенное фото (без сжатия)"
+        )
+
         return {"ok": True}
     except Exception as e:
+        print("[SEND ERROR]", str(e))
         return JSONResponse(status_code=500, content={"error": "Ошибка Telegram"})
 
 # Все маршруты зарегистрированы выше

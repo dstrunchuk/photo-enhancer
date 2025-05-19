@@ -100,15 +100,17 @@
         method: "POST",
         body: formData
       })
-      .then(res => {
-        if (res.ok) {
+      .then(async res => {
+        const data = await res.json();
+
+        if (res.ok && data.ok) {
           Telegram.WebApp.showAlert("Фото отправлено в Telegram.");
         } else {
           Telegram.WebApp.showAlert("Ошибка при отправке.");
         }
       })
-     .catch(() => {
-        Telegram.WebApp.showAlert("Ошибка соединения.");
+      .catch(() => {
+        Telegram.WebApp.showAlert("Ошибка соединения с сервером.");
       });
     }
   </script>
