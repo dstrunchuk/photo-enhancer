@@ -94,10 +94,13 @@ button:hover, .download-btn:hover {
   position: fixed;
   top: 0;
   left: 0;
+  width: 100%;
   padding: 16px;
   z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   background-color: #1c1c1e;
-  width: 100%;
 }
 
 .result-topbar button {
