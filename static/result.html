@@ -7,13 +7,13 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="result-container">
-    <div class="top-bar">
-      <button onclick="goBack()">← Назад</button>
-      <a id="downloadBtn" href="#" download="uluchshennoe-foto.jpg">Скачать</a>
-    </div>
+  <div class="result-topbar">
+    <button onclick="goBack()">← Назад</button>
+  </div>
 
-    <img id="resultImage" src="" alt="Результат">
+  <div class="result-content">
+    <img id="resultImage" src="" alt="Результат" />
+    <a id="downloadBtn" href="#" download="uluchshennoe-foto.jpg" class="download-btn">Скачать</a>
   </div>
 
   <script>
