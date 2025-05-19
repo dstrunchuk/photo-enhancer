@@ -75,7 +75,7 @@ async def telegram_webhook(request: Request):
                     }
                 }
             )
-
+    print("[webhook] update:", data)
     return {"ok": True}
 
     
