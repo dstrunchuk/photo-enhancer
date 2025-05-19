@@ -12,35 +12,36 @@
   </div>
 
   <div class="result-content">
-    <div class="slider-wrapper">
-      <img id="afterImage" class="slider-img" src="" alt="После" />
-      <div id="sliderOverlay">
-        <img id="beforeImage" class="slider-img" src="" alt="До" />
-      </div>
-      <input type="range" min="0" max="100" value="50" id="slider">
-    </div>
-
+    <img id="toggleImage" src="" alt="Фото" class="result-img" />
+    
+    <button id="toggleBtn" onclick="toggleImage()">Показать ДО</button>
     <a id="downloadBtn" href="#" download="ai-foto.jpg" class="download-btn">Скачать фото</a>
   </div>
 
   <script>
-    const afterUrl = sessionStorage.getItem("resultImage");
     const beforeUrl = sessionStorage.getItem("previewImage");
+    const afterUrl = sessionStorage.getItem("resultImage");
 
-    document.getElementById("afterImage").src = afterUrl;
-    document.getElementById("beforeImage").src = beforeUrl;
-    document.getElementById("downloadBtn").href = afterUrl;
+    const img = document.getElementById("toggleImage");
+    const btn = document.getElementById("toggleBtn");
+    const download = document.getElementById("downloadBtn");
+
+    let showingAfter = true;
+
+    img.src = afterUrl;
+    download.href = afterUrl;
+
+    function toggleImage() {
+      showingAfter = !showingAfter;
+      img.classList.add("fade");
+      img.src = showingAfter ? afterUrl : beforeUrl;
+      btn.innerText = showingAfter ? "Показать ДО" : "Показать ПОСЛЕ";
+      setTimeout(() => img.classList.remove("fade"), 200);
+    }
 
     function goBack() {
       window.location.href = "index.html";
     }
-
-    const slider = document.getElementById("slider");
-    const overlay = document.getElementById("sliderOverlay");
-
-    slider.addEventListener("input", () => {
-      overlay.style.width = slider.value + "%";
-    });
   </script>
 </body>
 </html>
