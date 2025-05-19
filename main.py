@@ -43,8 +43,18 @@ async def upload_image(file: UploadFile = File(...)):
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
-    message = data.get("message", {})
-    chat_id = message.get("chat", {}).get("id")
+
+    chat_id = None
+
+    # Пытаемся извлечь chat_id из всех возможных источников
+    if "message" in data:
+        chat_id = data["message"]["chat"]["id"]
+    elif "callback_query" in data:
+        chat_id = data["callback_query"]["from"]["id"]
+    elif "my_chat_member" in data:
+        chat_id = data["my_chat_member"]["chat"]["id"]
+    elif "edited_message" in data:
+        chat_id = data["edited_message"]["chat"]["id"]
 
     if chat_id:
         async with httpx.AsyncClient() as client:
