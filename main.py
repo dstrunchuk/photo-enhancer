@@ -64,17 +64,22 @@ async def telegram_webhook(request: Request):
 
 @app.post("/send_photo")
 async def send_photo(data: PhotoData):
+    # Скачиваем изображение
     async with httpx.AsyncClient() as client:
-        tg_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
-        response = await client.post(
-            tg_url,
-            data={
-                "chat_id": data.chat_id,
-                "photo": data.photo_url,
-                "caption": "Ваша улучшенная фотография"
-            }
-        )
-    return {"ok": response.status_code == 200}
+        try:
+            response = await client.get(data.photo_url)
+            response.raise_for_status()
+        except Exception as e:
+            return JSONResponse(status_code=400, content={"error": "Не удалось получить фото"})
+
+        image_bytes = response.content
+
+    # Отправляем фото в Telegram
+    try:
+        await BOT.send_photo(chat_id=data.chat_id, photo=io.BytesIO(image_bytes))
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": "Не удалось отправить фото в Telegram"})
 
 # Все маршруты зарегистрированы выше
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
