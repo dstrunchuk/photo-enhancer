@@ -19,6 +19,10 @@
     <button class="download-btn" onclick="sendToTelegram()">Скачать в Telegram</button>
   </div>
 
+  <div id="sending" style="display: none; text-align: center; margin-top: 10px; color: white;">
+    ⏳ Отправляем фото...
+  </div>
+
   <script>
     Telegram.WebApp.ready();
     const beforeUrl = sessionStorage.getItem("previewImage");
@@ -96,6 +100,9 @@
       formData.append("file", blob, "ai-foto.jpg");
       formData.append("chat_id", chatId);
 
+      const sendingIndicator = document.getElementById("sending");
+      sendingIndicator.style.display = "block"; // Показать "отправляем..."
+
       try {
         const res = await fetch("/send_photo_upload", {
           method: "POST",
@@ -105,12 +112,14 @@
         const data = await res.json();
 
         if (res.ok && data?.ok) {
-          Telegram.WebApp.showAlert("✅ Фото отправлено в Telegram как файл.");
+          Telegram.WebApp.showAlert("✅ Фото отправлено в Telegram.");
         } else {
           Telegram.WebApp.showAlert("⚠️ Фото отправилось, но сервер вернул ошибку.");
         }
-      } catch (err) {
+      } catch {
         Telegram.WebApp.showAlert("❌ Ошибка соединения с сервером.");
+      } finally {
+        sendingIndicator.style.display = "none"; // Скрыть после завершения
       }
     }
   </script>
