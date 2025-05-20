@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from utils.enhancer import enhance_image
 from fastapi.staticfiles import StaticFiles
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 import httpx
 import io
@@ -84,10 +85,12 @@ async def send_photo_upload(file: UploadFile = File(...), chat_id: int = Form(..
     try:
         image_bytes = await file.read()
 
-        await BOT.send_document(
+        # оборачиваем синхронную отправку
+        await run_in_threadpool(
+            BOT.send_document,
             chat_id=chat_id,
             document=io.BytesIO(image_bytes),
-            filename="uluchshennoe_foto.jpg",  # задаём имя файла
+            filename="uluchshennoe_foto.jpg",
             caption="Ваше улучшенное фото (без сжатия)"
         )
 
