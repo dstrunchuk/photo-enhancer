@@ -88,7 +88,7 @@
         });
     }
     async function sendToTelegram() {
-      const chatId = Telegram.WebApp.initDataUnsafe.user?.id;
+      const chatId = Telegram.WebApp.initDataUnsafe?.user?.id;
       const response = await fetch(sessionStorage.getItem("resultImage"));
       const blob = await response.blob();
 
@@ -96,22 +96,22 @@
       formData.append("file", blob, "ai-foto.jpg");
       formData.append("chat_id", chatId);
 
-      fetch("/send_photo_upload", {
-        method: "POST",
-        body: formData
-      })
-      .then(async res => {
+      try {
+        const res = await fetch("/send_photo_upload", {
+          method: "POST",
+          body: formData
+        });
+
         const data = await res.json();
 
-        if (res.ok && data.ok) {
-          Telegram.WebApp.showAlert("Фото отправлено в Telegram.");
+        if (res.ok && data?.ok) {
+          Telegram.WebApp.showAlert("✅ Фото отправлено в Telegram как файл.");
         } else {
-          Telegram.WebApp.showAlert("Ошибка при отправке.");
+          Telegram.WebApp.showAlert("⚠️ Фото отправилось, но сервер вернул ошибку.");
         }
-      })
-      .catch(() => {
-        Telegram.WebApp.showAlert("Ошибка соединения с сервером.");
-      });
+      } catch (err) {
+        Telegram.WebApp.showAlert("❌ Ошибка соединения с сервером.");
+      }
     }
   </script>
 </body>
