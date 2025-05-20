@@ -19,8 +19,11 @@
     <button class="download-btn" onclick="sendToTelegram()">Скачать в Telegram</button>
   </div>
 
-  <div id="sending" style="display: none; text-align: center; margin-top: 10px; color: white;">
-    ⏳ Отправляем фото...
+  <div id="sending" style="display: none;" class="sending-overlay">
+    <div class="sending-box">
+      <div class="spinner"></div>
+      <p>Отправляем фото в Telegram...</p>
+    </div>
   </div>
 
   <script>
