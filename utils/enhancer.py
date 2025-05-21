@@ -24,10 +24,10 @@ async def enhance_image(image_bytes: bytes) -> bytes:
 
     # --- Шаг 2: CodeFormer ---
     codeformer_url = replicate.run(
-        "sczhou/codeformer",
+        "sczhou/codeformer:cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2",
         input={
             "image": open("gfpgan_output.jpg", "rb"),
-            "fidelity": 1.0
+            "codeformer_fidelity": 1.0
         }
     )
 
