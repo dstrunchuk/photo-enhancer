@@ -82,10 +82,10 @@ async def enhance_image(image_bytes: bytes) -> bytes:
             "torrikabe-ai/idnbeauty:5f994656b3b88df2e21a3cf0a81371d66bd6ff45171f3e5618bb314bdc8b64b1",
             input={
                 "image": open("codeformer_output.jpg", "rb"),
-                "prompt": "A high-quality realistic photo with natural face enhancement. Slight skin smoothing and brightening, subtle lighting adjustment to create a clean and fresh look. No makeup, no changes to facial features, hairstyle, or gender. Preserve identity and natural expression.",
+                "prompt": "A high-quality realistic photo with natural face enhancement. Slight smoothing of the skin, soft brightening of the eyes and face tone. Preserve the person’s exact identity, facial features, hair, and clothing. No makeup, no fantasy, no background or hairstyle change. The result should look subtle, natural and photographic.",
                 "model": "dev",
                 "guidance_scale": 2,
-                "prompt_strength": 0.55,
+                "prompt_strength": 0.3,
                 "num_inference_steps": 28,
                 "output_format": "png",
                 "output_quality": 80,
