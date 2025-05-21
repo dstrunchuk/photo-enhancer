@@ -70,11 +70,11 @@ async def enhance_image(image_bytes: bytes) -> bytes:
                 "lora_scale": 0.94
             }
         )
-        beauty_img = requests.get(beauty_url)
+        beauty_img = requests.get(str(beauty_url[0]))
         final_image = Image.open(io.BytesIO(beauty_img.content)).convert("RGB")
     except Exception:
         print("IDNBeauty failed — returning CodeFormer result.")
-        final_image = Image.open("codeformer_resized.jpg").convert("RGB")
+        final_image = Image.open("codeformer_output.jpg").convert("RGB")
 
     # Возвращаем уже готовое изображение без финального сжатия
     img_bytes = io.BytesIO()
