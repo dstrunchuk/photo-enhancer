@@ -14,6 +14,7 @@ replicate_client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
 face_analyzer = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
 face_analyzer.prepare(ctx_id=0)
 
+
 # Проверка наличия лица
 def has_face(image_path: str) -> bool:
     img = Image.open(image_path).convert("RGB")
@@ -33,9 +34,8 @@ def compress_and_resize(image_path: str, output_path: str, max_size=1600):
 # Основная функция
 async def enhance_image(image_bytes: bytes) -> bytes:
     # Сохраняем оригинал и извлекаем ориентацию
-    image = Image.open(io.BytesIO(image_bytes))
-    exif = image.getexif()
-    orientation = exif.get(274)  # EXIF orientation tag
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    image = ImageOps.exif_transpose(image)  # безопасный поворот на основе EXIF
     image.save("input.jpg")
 
     if not has_face("input.jpg"):
