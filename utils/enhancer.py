@@ -48,14 +48,13 @@ async def enhance_image(image_bytes: bytes) -> bytes:
         print("CodeFormer failed — returning GFPGAN result.")
         return gfpgan_img.content
 
-    compress_and_resize("codeformer_output.jpg", "codeformer_resized.jpg")
 
     # Шаг 3 — IDNBeauty
     try:
         beauty_url = replicate.run(
             "torrikabe-ai/idnbeauty:5f994656b3b88df2e21a3cf0a81371d66bd6ff45171f3e5618bb314bdc8b64b1",
             input={
-                "image": open("codeformer_resized.jpg", "rb"),
+                "image": open("codeformer_output.jpg", "rb"),
                 "prompt": "A high-quality realistic portrait of a beautiful person with softly glowing skin, naturally brightened eyes, delicate eyelashes, subtly emphasized eye corners, and slightly enhanced lips. The facial features remain authentic. The effect is clean, fresh, and elegant — like professional soft studio light with gentle retouch.",
                 "model": "dev",
                 "guidance_scale": 2,
@@ -77,8 +76,8 @@ async def enhance_image(image_bytes: bytes) -> bytes:
         print("IDNBeauty failed — returning CodeFormer result.")
         final_image = Image.open("codeformer_resized.jpg").convert("RGB")
 
-    # Финальное сжатие
-    output_io = io.BytesIO()
-    final_image.save(output_io, format="JPEG", quality=95, optimize=True)
-    output_io.seek(0)
-    return output_io.read()
+    # Возвращаем уже готовое изображение без финального сжатия
+    img_bytes = io.BytesIO()
+    final_image.save(img_bytes, format="JPEG")  # без quality/optimize
+    img_bytes.seek(0)
+    return img_bytes.read()  
