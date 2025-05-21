@@ -25,7 +25,7 @@ async def enhance_image(image_bytes: bytes) -> bytes:
         codeformer_url = replicate.run(
             "sczhou/codeformer:cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2",
             input={
-                "image": open("gfpgan_resized.jpg", "rb"),
+                "image": open("input.jpg", "rb"),
                 "upscale": 2,
                 "face_upsample": True,
                 "background_enhance": True,
