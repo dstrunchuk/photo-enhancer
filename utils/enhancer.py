@@ -67,6 +67,17 @@ async def enhance_image(image_bytes: bytes) -> bytes:
         codeformer_img = requests.get(codeformer_url)
         with open("codeformer_output.jpg", "wb") as f:
             f.write(codeformer_img.content)
+
+        # Восстановление ориентации после CodeFormer
+        image_cf = Image.open("codeformer_output.jpg").convert("RGB")
+        if orientation == 3:
+            image_cf = image_cf.rotate(180, expand=True)
+        elif orientation == 6:
+            image_cf = image_cf.rotate(270, expand=True)
+        elif orientation == 8:
+            image_cf = image_cf.rotate(90, expand=True)
+        image_cf.save("codeformer_output.jpg")
+
     except Exception:
         print("CodeFormer failed — returning GFPGAN result.")
         return gfpgan_img.content
@@ -95,15 +106,7 @@ async def enhance_image(image_bytes: bytes) -> bytes:
         print(f"IDNBeauty failed: {e} — returning CodeFormer result.")
         final_image = Image.open("codeformer_output.jpg").convert("RGB")
 
-    # Восстановление ориентации
-    if orientation == 3:
-        final_image = final_image.rotate(180, expand=True)
-    elif orientation == 6:
-        final_image = final_image.rotate(270, expand=True)
-    elif orientation == 8:
-        final_image = final_image.rotate(90, expand=True)
-
-    # Конвертируем в байты и возвращаем
+    # Финальный результат
     img_bytes = io.BytesIO()
     final_image.save(img_bytes, format="JPEG")
     img_bytes.seek(0)
