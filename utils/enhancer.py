@@ -3,6 +3,8 @@ import requests
 import os
 from PIL import Image
 import io
+import numpy as np
+import mediapipe as mp
 
 replicate_client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
 
@@ -14,9 +16,21 @@ def compress_and_resize(image_path: str, output_path: str, max_size=1600):
         image = image.resize(new_size, Image.LANCZOS)
     image.save(output_path, format="JPEG", quality=90, optimize=True)
 
+def has_face(image_path: str) -> bool:
+    mp_face = mp.solutions.face_detection
+    img = Image.open(image_path).convert("RGB")
+    img_np = np.array(img)
+
+    with mp_face.FaceDetection(model_selection=1, min_detection_confidence=0.6) as detector:
+        results = detector.process(img_np)
+        return results.detections is not None and len(results.detections) > 0
+
 async def enhance_image(image_bytes: bytes) -> bytes:
     with open("input.jpg", "wb") as f:
         f.write(image_bytes)
+
+    if not has_face("input.jpg"):
+        raise Exception("Лицо не обнаружено. Пожалуйста, загрузите чёткий портрет.")
 
     # Шаг 1 — GFPGAN
     gfpgan_url = replicate.run(
@@ -48,14 +62,13 @@ async def enhance_image(image_bytes: bytes) -> bytes:
         print("CodeFormer failed — returning GFPGAN result.")
         return gfpgan_img.content
 
-
     # Шаг 3 — IDNBeauty
     try:
         beauty_url = replicate.run(
             "torrikabe-ai/idnbeauty:5f994656b3b88df2e21a3cf0a81371d66bd6ff45171f3e5618bb314bdc8b64b1",
             input={
                 "image": open("codeformer_output.jpg", "rb"),
-                "prompt": "A high-quality realistic portrait of a beautiful person with softly glowing skin, naturally brightened eyes, delicate eyelashes, subtly emphasized eye corners, and slightly enhanced lips. The facial features remain authentic. The effect is clean, fresh, and elegant — like professional soft studio light with gentle retouch.",
+                "prompt": "A high-quality close-up portrait with smooth and bright skin, subtle lighting on the face, gently enhanced eyes with natural shine, clean and softened facial texture, slightly glossy lips, and no change to facial features. The result should look natural and professionally lit, like a beauty camera with soft light.",
                 "model": "dev",
                 "guidance_scale": 2,
                 "prompt_strength": 0.61,
@@ -78,6 +91,6 @@ async def enhance_image(image_bytes: bytes) -> bytes:
 
     # Возвращаем уже готовое изображение без финального сжатия
     img_bytes = io.BytesIO()
-    final_image.save(img_bytes, format="JPEG")  # без quality/optimize
+    final_image.save(img_bytes, format="JPEG")
     img_bytes.seek(0)
-    return img_bytes.read()  
+    return img_bytes.read()
