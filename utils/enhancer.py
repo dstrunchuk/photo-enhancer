@@ -6,63 +6,61 @@ import io
 
 replicate_client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
 
-def compress_and_resize(image_path: str, output_path: str, max_size=1600):
-    image = Image.open(image_path).convert("RGB")
-    if max(image.size) > max_size:
-        scale = max_size / max(image.size)
-        new_size = (int(image.width * scale), int(image.height * scale))
-        image = image.resize(new_size, Image.LANCZOS)
-    image.save(output_path, format="JPEG", quality=90, optimize=True)
+def compress_if_needed(image_path: str, output_path: str, max_size_mb=4, max_pixels=1600):
+    size_mb = os.path.getsize(image_path) / 1024 / 1024
+    if size_mb <= max_size_mb:
+        return image_path  # ничего не делаем
+
+    img = Image.open(image_path).convert("RGB")
+    if max(img.size) > max_pixels:
+        scale = max_pixels / max(img.size)
+        new_size = (int(img.width * scale), int(img.height * scale))
+        img = img.resize(new_size, Image.LANCZOS)
+
+    img.save(output_path, format="JPEG", quality=90, optimize=True)
+    return output_path
 
 async def enhance_image(image_bytes: bytes) -> bytes:
+    # Сохраняем оригинал
     with open("input.jpg", "wb") as f:
         f.write(image_bytes)
 
-    # Шаг 1 — GFPGAN
-    gfpgan_url = replicate.run(
-        "tencentarc/gfpgan:0fbacf7afc6c144e5be9767cff80f25aff23e52b0708f17e20f9879b2f21516c",
-        input={"img": open("input.jpg", "rb")}
-    )
-    gfpgan_img = requests.get(gfpgan_url)
-    with open("gfpgan_output.jpg", "wb") as f:
-        f.write(gfpgan_img.content)
+    input_path = compress_if_needed("input.jpg", "input_resized.jpg")
 
-    compress_and_resize("gfpgan_output.jpg", "gfpgan_resized.jpg")
-
-    # Шаг 2 — CodeFormer
+    # Шаг 1 — CodeFormer
     try:
         codeformer_url = replicate.run(
             "sczhou/codeformer:cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2",
             input={
-                "image": open("gfpgan_resized.jpg", "rb"),
-                "upscale": 2,
-                "face_upsample": True,
-                "background_enhance": True,
+                "image": open(input_path, "rb"),
+                "upscale": 1,
+                "face_upsample": False,
+                "background_enhance": False,
                 "codeformer_fidelity": 0.1
             }
         )
-        codeformer_img = requests.get(codeformer_url)
+        cf_response = requests.get(codeformer_url)
         with open("codeformer_output.jpg", "wb") as f:
-            f.write(codeformer_img.content)
+            f.write(cf_response.content)
     except Exception:
-        print("CodeFormer failed — returning GFPGAN result.")
-        return gfpgan_img.content
+        print("Ошибка в CodeFormer — возвращаю исходник.")
+        return image_bytes
 
-    compress_and_resize("codeformer_output.jpg", "codeformer_resized.jpg")
+    cf_path = compress_if_needed("codeformer_output.jpg", "cf_resized.jpg")
 
-    # Шаг 3 — IDNBeauty
+    # Шаг 2 — IDNBeauty
     try:
         beauty_url = replicate.run(
             "torrikabe-ai/idnbeauty:5f994656b3b88df2e21a3cf0a81371d66bd6ff45171f3e5618bb314bdc8b64b1",
             input={
-                "image": open("codeformer_resized.jpg", "rb"),
+                "image": open(cf_path, "rb"),
                 "prompt": "A high-quality realistic portrait of a beautiful person with softly glowing skin, naturally brightened eyes, delicate eyelashes, subtly emphasized eye corners, and slightly enhanced lips. The facial features remain authentic. The effect is clean, fresh, and elegant — like professional soft studio light with gentle retouch.",
                 "model": "dev",
                 "guidance_scale": 2,
                 "prompt_strength": 0.61,
                 "num_inference_steps": 28,
                 "output_format": "png",
-                "output_quality": 80,
+                "output_quality": 90,
                 "megapixels": "1",
                 "go_fast": False,
                 "num_outputs": 1,
@@ -71,14 +69,19 @@ async def enhance_image(image_bytes: bytes) -> bytes:
                 "lora_scale": 0.94
             }
         )
-        beauty_img = requests.get(beauty_url)
-        final_image = Image.open(io.BytesIO(beauty_img.content)).convert("RGB")
+        beauty_response = requests.get(beauty_url)
+        final_image = Image.open(io.BytesIO(beauty_response.content)).convert("RGB")
     except Exception:
-        print("IDNBeauty failed — returning CodeFormer result.")
-        final_image = Image.open("codeformer_resized.jpg").convert("RGB")
+        print("Ошибка в IDNBeauty — возвращаю CodeFormer.")
+        final_image = Image.open(cf_path).convert("RGB")
 
-    # Финальное сжатие
+    # Финальное сжатие, если > 5 МБ
     output_io = io.BytesIO()
     final_image.save(output_io, format="JPEG", quality=95, optimize=True)
+    if output_io.getbuffer().nbytes > 5 * 1024 * 1024:
+        print("Финальный файл > 5 МБ — пересохраняем.")
+        output_io = io.BytesIO()
+        final_image.save(output_io, format="JPEG", quality=90, optimize=True)
+
     output_io.seek(0)
     return output_io.read()
