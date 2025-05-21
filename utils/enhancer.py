@@ -96,8 +96,8 @@ async def enhance_image(image_bytes: bytes) -> bytes:
         # Сохраняем в отдельный файл, строго для IDNBeauty
         image_cf.save("codeformer_aligned.jpg")
 
-    except Exception:
-        print("CodeFormer failed — returning GFPGAN result.")
+    except Exception as e:
+        print(f"CodeFormer failed: {e} — returning GFPGAN result.")
         return gfpgan_img.content
 
     
