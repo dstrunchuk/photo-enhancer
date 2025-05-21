@@ -4,10 +4,11 @@ import os
 from PIL import Image
 import io
 import numpy as np
-from cvlib.object_detection import draw_bbox
-import cv2
+from insightface.app import FaceAnalysis
 
 replicate_client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
+face_analyzer = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
+face_analyzer.prepare(ctx_id=0)
 
 def compress_and_resize(image_path: str, output_path: str, max_size=1600):
     image = Image.open(image_path).convert("RGB")
@@ -18,8 +19,9 @@ def compress_and_resize(image_path: str, output_path: str, max_size=1600):
     image.save(output_path, format="JPEG", quality=90, optimize=True)
 
 def has_face(image_path: str) -> bool:
-    image = cv2.imread(image_path)
-    faces, confidences = cv.detect_face(image)
+    img = Image.open(image_path).convert("RGB")
+    img_np = np.array(img)
+    faces = face_analyzer.get(img_np)
     return len(faces) > 0
 
 async def enhance_image(image_bytes: bytes) -> bytes:
