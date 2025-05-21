@@ -18,14 +18,23 @@ async def enhance_image(image_bytes: bytes) -> bytes:
     with open("input.jpg", "wb") as f:
         f.write(image_bytes)
 
+    # Шаг 1 — GFPGAN
+    gfpgan_url = replicate.run(
+        "tencentarc/gfpgan:0fbacf7afc6c144e5be9767cff80f25aff23e52b0708f17e20f9879b2f21516c",
+        input={"img": open("input.jpg", "rb")}
+    )
+    gfpgan_img = requests.get(gfpgan_url)
+    with open("gfpgan_output.jpg", "wb") as f:
+        f.write(gfpgan_img.content)
 
+    compress_and_resize("gfpgan_output.jpg", "gfpgan_resized.jpg")
 
     # Шаг 2 — CodeFormer
     try:
         codeformer_url = replicate.run(
             "sczhou/codeformer:cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2",
             input={
-                "image": open("input.jpg", "rb"),
+                "image": open("gfpgan_resized.jpg", "rb"),
                 "upscale": 2,
                 "face_upsample": True,
                 "background_enhance": True,
