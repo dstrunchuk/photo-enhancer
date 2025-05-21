@@ -73,10 +73,10 @@ async def enhance_image(image_bytes: bytes) -> bytes:
     # Шаг 3 — Real-ESRGAN
     try:
         realesrgan_url = replicate.run(
-            "nightmareai/real-esrgan",
+            "nightmareai/real-esrgan:f121d640bd286e1fdc67f9799164c1d5be36ff74576ee11c803ae5b665dd46aa",
             input={
                 "image": open("codeformer_output.jpg", "rb"),
-                "scale": 1,  # не увеличиваем размер
+                "scale": 1,  # сохраняем оригинальный размер
                 "face_enhance": False
             }
         )
