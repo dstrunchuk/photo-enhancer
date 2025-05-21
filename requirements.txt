@@ -8,5 +8,5 @@ httpx
 replicate
 requests
 numpy
-insightface-lite==0.3.0
-onnxruntime==1.15.1
+insightface
+onnxruntime
