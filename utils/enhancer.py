@@ -1,17 +1,27 @@
 import replicate
 import requests
 import os
-from PIL import Image
+from PIL import Image, ImageOps
 import io
 import numpy as np
 from insightface.app import FaceAnalysis
-from insightface.utils import face_align
 import onnxruntime
 
+# Replicate API
 replicate_client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
+
+# Инициализация распознавания лица
 face_analyzer = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
 face_analyzer.prepare(ctx_id=0)
 
+# Проверка наличия лица
+def has_face(image_path: str) -> bool:
+    img = Image.open(image_path).convert("RGB")
+    img_np = np.array(img)
+    faces = face_analyzer.get(img_np)
+    return len(faces) > 0
+
+# Уменьшение и сжатие изображения (для CodeFormer)
 def compress_and_resize(image_path: str, output_path: str, max_size=1600):
     image = Image.open(image_path).convert("RGB")
     if max(image.size) > max_size:
@@ -20,15 +30,13 @@ def compress_and_resize(image_path: str, output_path: str, max_size=1600):
         image = image.resize(new_size, Image.LANCZOS)
     image.save(output_path, format="JPEG", quality=90, optimize=True)
 
-def has_face(image_path: str) -> bool:
-    img = Image.open(image_path).convert("RGB")
-    img_np = np.array(img)
-    faces = face_analyzer.get(img_np)
-    return len(faces) > 0
-
+# Основная функция
 async def enhance_image(image_bytes: bytes) -> bytes:
-    with open("input.jpg", "wb") as f:
-        f.write(image_bytes)
+    # Сохраняем оригинал и извлекаем ориентацию
+    image = Image.open(io.BytesIO(image_bytes))
+    exif = image.getexif()
+    orientation = exif.get(274)  # EXIF orientation tag
+    image.save("input.jpg")
 
     if not has_face("input.jpg"):
         raise Exception("Лицо не обнаружено. Пожалуйста, загрузите чёткий портрет.")
@@ -83,11 +91,19 @@ async def enhance_image(image_bytes: bytes) -> bytes:
         )
         beauty_img = requests.get(str(beauty_url[0]))
         final_image = Image.open(io.BytesIO(beauty_img.content)).convert("RGB")
-    except Exception:
-        print("IDNBeauty failed — returning CodeFormer result.")
+    except Exception as e:
+        print(f"IDNBeauty failed: {e} — returning CodeFormer result.")
         final_image = Image.open("codeformer_output.jpg").convert("RGB")
 
-    # Возвращаем уже готовое изображение без финального сжатия
+    # Восстановление ориентации
+    if orientation == 3:
+        final_image = final_image.rotate(180, expand=True)
+    elif orientation == 6:
+        final_image = final_image.rotate(270, expand=True)
+    elif orientation == 8:
+        final_image = final_image.rotate(90, expand=True)
+
+    # Конвертируем в байты и возвращаем
     img_bytes = io.BytesIO()
     final_image.save(img_bytes, format="JPEG")
     img_bytes.seek(0)
