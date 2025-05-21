@@ -68,30 +68,33 @@ async def enhance_image(image_bytes: bytes) -> bytes:
         with open("codeformer_output.jpg", "wb") as f:
             f.write(codeformer_img.content)
 
-        # Восстановление ориентации после CodeFormer
+        # Восстановление ориентации — обязательно ДО IDNBeauty
         image_cf = Image.open("codeformer_output.jpg").convert("RGB")
         if orientation == 3:
-            image_cf = image_cf.rotate(180, expand=True)
+           image_cf = image_cf.rotate(180, expand=True)
         elif orientation == 6:
             image_cf = image_cf.rotate(270, expand=True)
         elif orientation == 8:
             image_cf = image_cf.rotate(90, expand=True)
-        image_cf.save("codeformer_output.jpg")
+    
+        # Сохраняем в отдельный файл, строго для IDNBeauty
+        image_cf.save("codeformer_aligned.jpg")
 
     except Exception:
         print("CodeFormer failed — returning GFPGAN result.")
         return gfpgan_img.content
 
+    
     # Шаг 3 — IDNBeauty
     try:
         beauty_url = replicate.run(
             "torrikabe-ai/idnbeauty:5f994656b3b88df2e21a3cf0a81371d66bd6ff45171f3e5618bb314bdc8b64b1",
             input={
-                "image": open("codeformer_output.jpg", "rb"),
-                "prompt": "A high-quality realistic selfie with smooth glowing skin, brightened whites of the eyes, softly enhanced eyelashes, subtly defined lips, and elegant facial tone — like a professional beauty filter. No changes to face structure or angle.",
+                "image": open("codeformer_aligned.jpg", "rb"),
+                "prompt": "A high-quality realistic photo with natural face enhancement. Slight skin smoothing and brightening, subtle lighting adjustment to create a clean and fresh look. No makeup, no changes to facial features, hairstyle, or gender. Preserve identity and natural expression.",
                 "model": "dev",
                 "guidance_scale": 2,
-                "prompt_strength": 0.61,
+                "prompt_strength": 0.55,
                 "num_inference_steps": 28,
                 "output_format": "png",
                 "output_quality": 80,
