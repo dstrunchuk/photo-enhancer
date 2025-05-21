@@ -65,8 +65,24 @@ async def enhance_image(image_bytes: bytes) -> bytes:
             }
         )
         codeformer_img = requests.get(codeformer_url)
-        with open("codeformer_output.jpg", "wb") as f:
-            f.write(codeformer_img.content)
+
+        # Сохраняем как байты
+        img_bytes = io.BytesIO(codeformer_img.content)
+        img_bytes.seek(0)
+
+        # Открываем изображение из байтов (возможно уже перевёрнутое)
+        image_cf = Image.open(img_bytes).convert("RGB")
+
+        # ЖЁСТКО исправляем ориентацию вручную
+        if orientation == 3:
+            image_cf = image_cf.rotate(180, expand=True)
+        elif orientation == 6:
+            image_cf = image_cf.rotate(270, expand=True)
+        elif orientation == 8:
+            image_cf = image_cf.rotate(90, expand=True)
+
+        # Сохраняем выровненное изображение для IDNBeauty
+        image_cf.save("codeformer_aligned.jpg", format="JPEG", quality=95)
 
         # Восстановление ориентации — обязательно ДО IDNBeauty
         image_cf = Image.open("codeformer_output.jpg").convert("RGB")
