@@ -53,7 +53,7 @@ async def enhance_image(image_bytes: bytes) -> bytes:
                 "upscale": 2,
                 "face_upsample": True,
                 "background_enhance": True,
-                "codeformer_fidelity": 0.5
+                "codeformer_fidelity": 0.8
             }
         )
         codeformer_img = requests.get(codeformer_url)
@@ -69,19 +69,16 @@ async def enhance_image(image_bytes: bytes) -> bytes:
             "torrikabe-ai/idnbeauty:5f994656b3b88df2e21a3cf0a81371d66bd6ff45171f3e5618bb314bdc8b64b1",
             input={
                 "image": open("codeformer_output.jpg", "rb"),
-                "prompt": "A high-quality close-up portrait with smooth and bright skin, subtle lighting on the face, gently enhanced eyes with natural shine, clean and softened facial texture, slightly glossy lips, and no change to facial features. The result should look natural and professionally lit, like a beauty camera with soft light.",
+                "prompt": "A high-quality realistic selfie with smooth glowing skin, brightened whites of the eyes, softly enhanced eyelashes, subtly defined lips, and elegant facial tone — like a professional beauty filter. No changes to face structure or angle.",
                 "model": "dev",
                 "guidance_scale": 2,
                 "prompt_strength": 0.61,
                 "num_inference_steps": 28,
                 "output_format": "png",
                 "output_quality": 80,
-                "megapixels": "1",
                 "go_fast": False,
-                "num_outputs": 1,
-                "aspect_ratio": "1:1",
-                "extra_lora_scale": 0.22,
-                "lora_scale": 0.94
+                "lora_scale": 0.94,
+                "extra_lora_scale": 0.22
             }
         )
         beauty_img = requests.get(str(beauty_url[0]))
