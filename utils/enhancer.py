@@ -1,27 +1,27 @@
 import replicate
 import requests
 import os
-from PIL import Image, ImageOps
+from PIL import Image
 import io
 import numpy as np
 from insightface.app import FaceAnalysis
 import onnxruntime
 
-# Инициализация клиента Replicate
+# Инициализация Replicate
 replicate_client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
 
-# Инициализация распознавания лица
+# Инициализация распознавания лиц
 face_analyzer = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
 face_analyzer.prepare(ctx_id=0)
 
-# Проверка наличия лица на изображении
+# Проверка наличия лица
 def has_face(image_path: str) -> bool:
     img = Image.open(image_path).convert("RGB")
     img_np = np.array(img)
     faces = face_analyzer.get(img_np)
     return len(faces) > 0
 
-# Сжатие и уменьшение изображения
+# Сжатие и ресайз
 def compress_and_resize(image_path: str, output_path: str, max_size=1600):
     image = Image.open(image_path).convert("RGB")
     if max(image.size) > max_size:
@@ -30,32 +30,31 @@ def compress_and_resize(image_path: str, output_path: str, max_size=1600):
         image = image.resize(new_size, Image.LANCZOS)
     image.save(output_path, format="JPEG", quality=90, optimize=True)
 
-# Основная функция обработки
+# Основная функция
 async def enhance_image(image_bytes: bytes) -> bytes:
-    # Открываем изображение и выравниваем по EXIF
+    # Сохраняем оригинал
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    image = ImageOps.exif_transpose(image)
     image.save("input.jpg")
 
-    # Проверка на наличие лица
     if not has_face("input.jpg"):
         raise Exception("Лицо не обнаружено. Пожалуйста, загрузите чёткий портрет.")
 
     # Шаг 1 — GFPGAN
     gfpgan_url = replicate.run(
-        "tencentarc/gfpgan:0fbacf7afc6c144e5be9767cff80f25aff23e52b0708f17e20f9879b2f21516c",
+        "tencentarc/gfpgan",
         input={"img": open("input.jpg", "rb")}
     )
-    gfpgan_img = requests.get(gfpgan_url)
+    gfpgan_img = requests.get(gfpgan_url[0])
     with open("gfpgan_output.jpg", "wb") as f:
         f.write(gfpgan_img.content)
 
+    # Сжатие перед CodeFormer
     compress_and_resize("gfpgan_output.jpg", "gfpgan_resized.jpg")
 
     # Шаг 2 — CodeFormer
     try:
         codeformer_url = replicate.run(
-            "sczhou/codeformer:cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2",
+            "sczhou/codeformer",
             input={
                 "image": open("gfpgan_resized.jpg", "rb"),
                 "upscale": 2,
@@ -64,52 +63,31 @@ async def enhance_image(image_bytes: bytes) -> bytes:
                 "codeformer_fidelity": 0.8
             }
         )
-        codeformer_img = requests.get(codeformer_url)
-        img_bytes_cf = io.BytesIO(codeformer_img.content)
-        img_bytes_cf.seek(0)
-
-        # Сохраняем выровненное изображение
-        image_cf = Image.open(img_bytes_cf).convert("RGB")
-        image_cf.save("codeformer_output.jpg", format="JPEG", quality=95)
-
+        codeformer_img = requests.get(codeformer_url[0])
+        with open("codeformer_output.jpg", "wb") as f:
+            f.write(codeformer_img.content)
     except Exception as e:
         print(f"CodeFormer failed: {e} — returning GFPGAN result.")
         return gfpgan_img.content
 
-    # Шаг 3 — IDNBeauty
+    # Шаг 3 — Real-ESRGAN
     try:
-        beauty_url = replicate.run(
-            "torrikabe-ai/idnbeauty:5f994656b3b88df2e21a3cf0a81371d66bd6ff45171f3e5618bb314bdc8b64b1",
+        realesrgan_url = replicate.run(
+            "nightmareai/real-esrgan",
             input={
                 "image": open("codeformer_output.jpg", "rb"),
-                "prompt": (
-                    "Subtly enhance the original photo by slightly brightening the overall image, "
-                    "including the background, skin, and clothing, while keeping the natural tones. "
-                    "Gently smooth the skin, subtly highlight the eyes and lips, and preserve the original "
-                    "face structure, lighting, hairstyle, clothing, and background. No makeup or artistic filters. "
-                    "The result must look like the original photo but clearer, cleaner, and naturally more radiant. "
-                    "Do not modify the identity, gender, facial structure, pose, or clothing in any way."
-                ),
-                "model": "dev",
-                "guidance_scale": 1,
-                "prompt_strength": 0.1,
-                "num_inference_steps": 28,
-                "output_format": "png",
-                "output_quality": 80,
-                "go_fast": False,
-                "lora_scale": 0.94,
-                "extra_lora_scale": 0.22
+                "scale": 1,  # не увеличиваем размер
+                "face_enhance": False
             }
         )
-        beauty_img = requests.get(str(beauty_url[0]))
-        final_image = Image.open(io.BytesIO(beauty_img.content)).convert("RGB")
-
+        realesrgan_img = requests.get(realesrgan_url[0])
+        final_image = Image.open(io.BytesIO(realesrgan_img.content)).convert("RGB")
     except Exception as e:
-        print(f"IDNBeauty failed: {e} — returning CodeFormer result.")
+        print(f"Real-ESRGAN failed: {e} — returning CodeFormer result.")
         final_image = Image.open("codeformer_output.jpg").convert("RGB")
 
-    # Финальный результат
-    final_bytes = io.BytesIO()
-    final_image.save(final_bytes, format="JPEG")
-    final_bytes.seek(0)
-    return final_bytes.read()
+    # Возвращаем финальное изображение
+    img_bytes = io.BytesIO()
+    final_image.save(img_bytes, format="JPEG")
+    img_bytes.seek(0)
+    return img_bytes.read()
