@@ -3,6 +3,8 @@ FROM python:3.10-slim
 WORKDIR /app
 
 COPY requirements.txt .
+
+# Установка системных библиотек, необходимых для insightface и onnxruntime
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libgl1 \
@@ -11,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     libopencv-core-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Установка Python-зависимостей
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
