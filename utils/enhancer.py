@@ -5,9 +5,11 @@ from PIL import Image
 import io
 import numpy as np
 from insightface.app import FaceAnalysis
+from insightface.utils import face_align
+import onnxruntime
 
 replicate_client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
-face_analyzer = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
+face_analyzer = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
 face_analyzer.prepare(ctx_id=0)
 
 def compress_and_resize(image_path: str, output_path: str, max_size=1600):
