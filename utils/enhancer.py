@@ -4,7 +4,7 @@ import os
 from PIL import Image
 import io
 import numpy as np
-import mediapipe as mp
+import face_recognition
 
 replicate_client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
 
@@ -17,13 +17,9 @@ def compress_and_resize(image_path: str, output_path: str, max_size=1600):
     image.save(output_path, format="JPEG", quality=90, optimize=True)
 
 def has_face(image_path: str) -> bool:
-    mp_face = mp.solutions.face_detection
-    img = Image.open(image_path).convert("RGB")
-    img_np = np.array(img)
-
-    with mp_face.FaceDetection(model_selection=1, min_detection_confidence=0.6) as detector:
-        results = detector.process(img_np)
-        return results.detections is not None and len(results.detections) > 0
+    image = face_recognition.load_image_file(image_path)
+    face_locations = face_recognition.face_locations(image)
+    return len(face_locations) > 0
 
 async def enhance_image(image_bytes: bytes) -> bytes:
     with open("input.jpg", "wb") as f:
