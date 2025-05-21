@@ -75,13 +75,24 @@ async def enhance_image(image_bytes: bytes) -> bytes:
     except Exception as e:
         print(f"CodeFormer failed: {e} — returning GFPGAN result.")
         return gfpgan_img.content
+    
+        # Сжимаем изображение, если оно слишком большое (Real-ESRGAN ограничен по памяти)
+    image_for_esrgan = Image.open("codeformer_output.jpg").convert("RGB")
+    if image_for_esrgan.width * image_for_esrgan.height > 2000000:
+        scale = (2000000 / (image_for_esrgan.width * image_for_esrgan.height)) ** 0.5
+        new_size = (int(image_for_esrgan.width * scale), int(image_for_esrgan.height * scale))
+        image_for_esrgan = image_for_esrgan.resize(new_size, Image.LANCZOS)
+        image_for_esrgan.save("codeformer_output_resized.jpg", format="JPEG", quality=95)
+        esrgan_input_path = "codeformer_output_resized.jpg"
+    else:
+        esrgan_input_path = "codeformer_output.jpg"
 
      # Шаг 3 — Real-ESRGAN (финальное улучшение)
     try:
         esrgan_url = replicate.run(
             "nightmareai/real-esrgan:f121d640bd286e1fdc67f9799164c1d5be36ff74576ee11c803ae5b665dd46aa",
             input={
-                "image": open("codeformer_output.jpg", "rb"),
+                "image": open(esrgan_input_path, "rb"),
                 "scale": 1,
                 "face_enhance": False
             }
