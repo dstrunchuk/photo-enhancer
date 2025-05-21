@@ -4,7 +4,8 @@ import os
 from PIL import Image
 import io
 import numpy as np
-import face_recognition
+from cvlib.object_detection import draw_bbox
+import cv2
 
 replicate_client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
 
@@ -17,9 +18,9 @@ def compress_and_resize(image_path: str, output_path: str, max_size=1600):
     image.save(output_path, format="JPEG", quality=90, optimize=True)
 
 def has_face(image_path: str) -> bool:
-    image = face_recognition.load_image_file(image_path)
-    face_locations = face_recognition.face_locations(image)
-    return len(face_locations) > 0
+    image = cv2.imread(image_path)
+    faces, confidences = cv.detect_face(image)
+    return len(faces) > 0
 
 async def enhance_image(image_bytes: bytes) -> bytes:
     with open("input.jpg", "wb") as f:
