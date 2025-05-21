@@ -52,7 +52,7 @@ async def enhance_image(image_bytes: bytes) -> bytes:
                 "upscale": 2,
                 "face_upsample": True,
                 "background_enhance": True,
-                "codeformer_fidelity": 0.1
+                "codeformer_fidelity": 0.5
             }
         )
         codeformer_img = requests.get(codeformer_url)
