@@ -82,7 +82,14 @@ async def enhance_image(image_bytes: bytes) -> bytes:
             "torrikabe-ai/idnbeauty:5f994656b3b88df2e21a3cf0a81371d66bd6ff45171f3e5618bb314bdc8b64b1",
             input={
                 "image": open("codeformer_output.jpg", "rb"),
-                "prompt": "Keep the original face exactly as it is. Just brighten the skin tone slightly, make the eyes look clearer and whiter, and gently emphasize the lips with natural color. Do not alter facial structure, hairstyle, clothing, or background. Everything must stay as in the original photo.",
+                "prompt": (
+                    "Subtly enhance the original photo by slightly brightening the overall image, "
+                    "including the background, skin, and clothing, while keeping the natural tones. "
+                    "Gently smooth the skin, subtly highlight the eyes and lips, and preserve the original "
+                    "face structure, lighting, hairstyle, clothing, and background. No makeup or artistic filters. "
+                    "The result must look like the original photo but clearer, cleaner, and naturally more radiant. "
+                    "Do not modify the identity, gender, facial structure, pose, or clothing in any way."
+                ),
                 "model": "dev",
                 "guidance_scale": 1,
                 "prompt_strength": 0.1,
