@@ -6,3 +6,4 @@ aiofiles
 python-telegram-bot==13.15
 httpx
 replicate
+requests
