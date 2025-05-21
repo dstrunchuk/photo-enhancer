@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Request, Form
+from fastapi import FastAPI, UploadFile, File, Request, Form, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from utils.enhancer import enhance_image
@@ -10,6 +10,8 @@ import httpx
 import io
 import os
 import telegram
+import traceback
+
 
 # Telegram токен из Railway (environment variable)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -33,12 +35,14 @@ class PhotoData(BaseModel):
 # Эндпоинт загрузки фото
 @app.post("/upload/")
 async def upload_image(file: UploadFile = File(...)):
-    contents = await file.read()
     try:
-        enhanced = await enhance_image(contents)
-        return StreamingResponse(io.BytesIO(enhanced), media_type="image/jpeg")
+        contents = await file.read()
+        result = await enhance_image(contents)
+        return StreamingResponse(io.BytesIO(result), media_type="image/jpeg")
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        print("ERROR DURING IMAGE PROCESSING:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Telegram webhook
 @app.post("/webhook")
