@@ -69,19 +69,19 @@ async def enhance_image(image_bytes: bytes) -> bytes:
             input={
                 "image": open("codeformer_output.jpg", "rb"),
                 "prompt": (
-                    "Apply soft and minimal skin retouching. Remove only visible facial shadows and deep creases. "
-                    "Do not change eyes, lips, or face shape. Preserve all original facial features and textures. "
-                    "The result must look natural and realistic with no visible edits."
+                    "Gently reduce under-eye bags and nasolabial folds while preserving facial texture and identity. "
+                    "Remove visible deep skin creases without affecting the eyes, lips, or natural expression. "
+                    "Keep the image subtle, realistic, and without artificial changes."
                 ),
                 "model": "dev",
-                "guidance_scale": 0.6,
-                "prompt_strength": 0.05,
+                "guidance_scale": 0.7,  # усилено с 0.6
+                "prompt_strength": 0.07,  # было 0.05
                 "num_inference_steps": 28,
                 "output_format": "png",
                 "output_quality": 80,
                 "go_fast": False,
-                "lora_scale": 0.80,
-                "extra_lora_scale": 0.15
+                "lora_scale": 0.82,  # немного увеличено
+                "extra_lora_scale": 0.18
             }
         )
         skin_retouch_img = requests.get(str(skin_retouch_url[0]))
