@@ -22,19 +22,18 @@ def has_face(image_path: str) -> bool:
     return len(faces) > 0
 
 def conditional_brightness(image: Image.Image) -> Image.Image:
-    # Переводим в numpy и считаем среднюю яркость (от 0 до 255)
     grayscale = image.convert("L")
     avg_brightness = np.mean(np.array(grayscale))
 
-    # Логика: если темное — усиливаем сильнее, если светлое — мягче
-    if avg_brightness < 100:
-        factor = 1.50  # тёмное фото — сильно осветляем
-    elif avg_brightness < 160:
-        factor = 1.35  # средняя яркость — умеренно
-    else:
-        factor = 1.20  # уже светлое — слегка
+    # Яркость фото от 0 до 255 — масштабируем в диапазон нужного коэффициента
+    # Чем темнее, тем больше коэффициент
+    # Например: при avg = 80 → 1.5, при avg = 160 → 1.2
+    brightness_factor = np.clip(
+        1.5 - (avg_brightness - 80) * 0.00375,  # 0.00375 = (1.5 - 1.2) / (160 - 80)
+        1.2, 1.5
+    )
 
-    return ImageEnhance.Brightness(image).enhance(factor)
+    return ImageEnhance.Brightness(image).enhance(brightness_factor)
 
 # Лёгкая цветокоррекция + акцент на чёткость
 def apply_final_polish(image: Image.Image) -> Image.Image:
@@ -65,7 +64,7 @@ async def enhance_image(image_bytes: bytes) -> bytes:
                 ),
                 "model": "dev",
                 "guidance_scale": 0.5,
-                "prompt_strength": 0.10,
+                "prompt_strength": 0.09,
                 "num_inference_steps": 24,
                 "output_format": "png",
                 "output_quality": 90,
