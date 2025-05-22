@@ -66,10 +66,10 @@ async def enhance_image(image_bytes: bytes) -> bytes:
 
     compress_and_resize("gfpgan_output.jpg", "gfpgan_resized.jpg")
 
-    # Шаг 2 — CodeFormer
+    # Шаг 2 — CodeFormer (обновлённая модель)
     try:
         codeformer_url = replicate.run(
-            "sczhou/codeformer:cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2",
+            "lucataco/codeformer:78f2bab438ab0ffc85a68cdfd316a2ecd3994b5dd26aa6b3d203357b45e5eb1b",
             input={
                 "image": open("gfpgan_resized.jpg", "rb"),
                 "upscale": 1,
