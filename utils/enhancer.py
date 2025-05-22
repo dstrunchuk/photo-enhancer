@@ -6,6 +6,7 @@ import io
 import numpy as np
 from insightface.app import FaceAnalysis
 import onnxruntime
+import matplotlib.colors
 
 def lighten_shadows(image: Image.Image, factor=1.2) -> Image.Image:
     img_np = np.array(image).astype(np.float32) / 255.0
