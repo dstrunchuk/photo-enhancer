@@ -21,30 +21,28 @@ def has_face(image_path: str) -> bool:
     faces = face_analyzer.get(img_np)
     return len(faces) > 0
 
-# Цветокоррекция
+# Цветокоррекция с теплом и улучшенной резкостью
 def apply_color_correction(image: Image.Image) -> Image.Image:
-    # 1. Повышаем яркость и подсвечиваем тени
+    # Яркость — чуть ниже, чем была
     enhancer = ImageEnhance.Brightness(image)
-    image = enhancer.enhance(1.28)  # ярче, чем раньше
+    image = enhancer.enhance(1.15)
 
-    # 2. Мягко осветляем тени (только тёмные участки)
-    image = image.point(lambda p: p * 1.03 if p < 130 else p)
-
-    # 3. Немного усиливаем цвет
-    enhancer = ImageEnhance.Color(image)
-    image = enhancer.enhance(1.10)
-
-    # 4. Контраст делаем чуть ниже, чтобы сохранить мягкость
+    # Контраст — слегка, чтобы не потерять мягкость
     enhancer = ImageEnhance.Contrast(image)
-    image = enhancer.enhance(1.02)
+    image = enhancer.enhance(1.01)
 
-    # 5. Повторное мягкое осветление всех тонов
-    enhancer = ImageEnhance.Brightness(image)
-    image = enhancer.enhance(1.12)
+    # Насыщенность цвета
+    enhancer = ImageEnhance.Color(image)
+    image = enhancer.enhance(1.08)
 
-    # 6. Немного резкости
+    # Резкость — важный момент
     enhancer = ImageEnhance.Sharpness(image)
-    image = enhancer.enhance(1.03)
+    image = enhancer.enhance(1.08)
+
+    # Тёплый фильтр — усиливаем красный канал
+    r, g, b = image.split()
+    r = r.point(lambda i: min(255, int(i * 1.06)))  # усилить красный
+    image = Image.merge("RGB", (r, g, b))
 
     return image
 
@@ -83,18 +81,19 @@ async def enhance_image(image_bytes: bytes) -> bytes:
             input={
                 "image": open("codeformer_output.jpg", "rb"),
                 "prompt": (
-                    "Subtle skin smoothing to reduce only strong facial shadows and small creases. Keep all skin texture, eye areas, and identity fully unchanged. "
-                    "No additions or modifications to facial features."
+                    "Apply soft and minimal skin retouching. Remove only visible facial shadows and deep creases. "
+                    "Do not change eyes, lips, or face shape. Preserve all original facial features and textures. "
+                    "The result must look natural and realistic with no visible edits."
                 ),
                 "model": "dev",
-                "guidance_scale": 0.8,
-                "prompt_strength": 0.07,
+                "guidance_scale": 0.6,
+                "prompt_strength": 0.05,
                 "num_inference_steps": 28,
                 "output_format": "png",
                 "output_quality": 80,
                 "go_fast": False,
-                "lora_scale": 0.88,
-                "extra_lora_scale": 0.22
+                "lora_scale": 0.80,
+                "extra_lora_scale": 0.15
             }
         )
         skin_retouch_img = requests.get(str(skin_retouch_url[0]))
