@@ -37,13 +37,25 @@ def apply_color_correction(image: Image.Image) -> Image.Image:
 # Осветление теней и эффект студийного света
 def apply_studio_light(image: Image.Image) -> Image.Image:
     base = image.copy()
-    shadow_layer = base.filter(ImageFilter.GaussianBlur(radius=30))
+
+    # Более мягкое размытие с чуть большим радиусом
+    shadow_layer = base.filter(ImageFilter.GaussianBlur(radius=14))
+
+    # Осветляем ярче
     enhancer = ImageEnhance.Brightness(shadow_layer)
     shadow_layer = enhancer.enhance(1.25)
-    base = Image.blend(base, shadow_layer, alpha=0.25)
+
+    # Смешиваем с оригиналом с большей интенсивностью
+    base = Image.blend(base, shadow_layer, alpha=0.22)
+
+    # Повышаем резкость сильнее
+    base = ImageEnhance.Sharpness(base).enhance(1.15)
+
+    # Снижаем лёгкую красноту
     r, g, b = base.split()
-    r = r.point(lambda i: i * 0.97)
+    r = r.point(lambda i: i * 0.975)
     base = Image.merge("RGB", (r, g, b))
+
     return base
 
 # Основная функция
