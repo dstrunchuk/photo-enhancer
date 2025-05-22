@@ -56,7 +56,7 @@ async def enhance_image(image_bytes: bytes) -> bytes:
         "xinntao/gfpgan:6129309904ce4debfde78de5c209bce0022af40e197e132f08be8ccce3050393",
         input={
             "img": open("input.jpg", "rb"),
-            "scale": 2,
+            "scale": 1,
             "version": "v1.4"
         }
     )
