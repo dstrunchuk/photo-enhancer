@@ -1,7 +1,7 @@
 import replicate
 import requests
 import os
-from PIL import Image, ImageOps, ImageEnhance
+from PIL import Image, ImageOps, ImageEnhance, ImageFilter
 import io
 import numpy as np
 from insightface.app import FaceAnalysis
@@ -24,7 +24,6 @@ def has_face(image_path: str) -> bool:
 
 # Цветокоррекция с теплом и улучшенной резкостью
 def apply_color_correction(image: Image.Image) -> Image.Image:
-
     enhancer = ImageEnhance.Brightness(image)
     image = enhancer.enhance(1.20)
     enhancer = ImageEnhance.Contrast(image)
@@ -34,6 +33,19 @@ def apply_color_correction(image: Image.Image) -> Image.Image:
     enhancer = ImageEnhance.Sharpness(image)
     image = enhancer.enhance(1.10)
     return image
+
+# Осветление теней и эффект студийного света
+def apply_studio_light(image: Image.Image) -> Image.Image:
+    base = image.copy()
+    shadow_layer = base.filter(ImageFilter.GaussianBlur(radius=30))
+    enhancer = ImageEnhance.Brightness(shadow_layer)
+    shadow_layer = enhancer.enhance(1.25)
+    base = Image.blend(base, shadow_layer, alpha=0.25)
+    r, g, b = base.split()
+    r = r.point(lambda i: i * 0.97)
+    base = Image.merge("RGB", (r, g, b))
+    return base
+
 # Основная функция
 async def enhance_image(image_bytes: bytes) -> bytes:
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
@@ -93,7 +105,10 @@ async def enhance_image(image_bytes: bytes) -> bytes:
     # Шаг 3 — Цветокоррекция
     final_image = apply_color_correction(final_image)
 
-    # Возврат результата
+    # Шаг 4 — Осветление теней и студийный свет
+    final_image = apply_studio_light(final_image)
+
+    # Финальный результат
     final_bytes = io.BytesIO()
     final_image.save(final_bytes, format="JPEG", quality=99, subsampling=0)
     final_bytes.seek(0)

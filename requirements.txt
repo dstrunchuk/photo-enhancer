@@ -11,3 +11,4 @@ numpy
 insightface
 onnxruntime
 matplotlib
+Pillow
