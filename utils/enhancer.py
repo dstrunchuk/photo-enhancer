@@ -43,13 +43,13 @@ def apply_studio_light(image: Image.Image) -> Image.Image:
 
     # Осветляем ярче
     enhancer = ImageEnhance.Brightness(shadow_layer)
-    shadow_layer = enhancer.enhance(1.25)
+    shadow_layer = enhancer.enhance(1.30)
 
     # Смешиваем с оригиналом с большей интенсивностью
     base = Image.blend(base, shadow_layer, alpha=0.22)
 
     # Повышаем резкость сильнее
-    base = ImageEnhance.Sharpness(base).enhance(1.15)
+    base = ImageEnhance.Sharpness(base).enhance(1.25)
 
     # Снижаем лёгкую красноту
     r, g, b = base.split()
@@ -93,19 +93,18 @@ async def enhance_image(image_bytes: bytes) -> bytes:
             input={
                 "image": open("codeformer_output.jpg", "rb"),
                 "prompt": (
-                    "Apply soft and minimal skin retouching. Remove only visible facial shadows and deep creases. "
-                    "Do not change eyes, lips, or face shape. Preserve all original facial features and textures. "
-                    "The result must look natural and realistic with no visible edits."
+                    "Subtle and minimal skin retouching. Only reduce deep wrinkles and shadows without changing any details. "
+                    "Preserve full texture, clarity, and identity of the face. No added blur, no smoothing of features."
                 ),
                 "model": "dev",
-                "guidance_scale": 0.6,
-                "prompt_strength": 0.05,
-                "num_inference_steps": 28,
+                "guidance_scale": 0.4,
+                "prompt_strength": 0.03,
+                "num_inference_steps": 22,
                 "output_format": "png",
                 "output_quality": 80,
                 "go_fast": False,
-                "lora_scale": 0.80,
-                "extra_lora_scale": 0.15
+                "lora_scale": 0.65,
+                "extra_lora_scale": 0.10
             }
         )
         skin_retouch_img = requests.get(str(skin_retouch_url[0]))
