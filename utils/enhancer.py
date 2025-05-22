@@ -33,7 +33,7 @@ def compress_and_resize(image_path: str, output_path: str, max_size=1600):
 # Цветокоррекция
 def apply_color_correction(image: Image.Image) -> Image.Image:
     enhancer = ImageEnhance.Brightness(image)
-    image = enhancer.enhance(1.10)
+    image = enhancer.enhance(1.20)
     enhancer = ImageEnhance.Contrast(image)
     image = enhancer.enhance(1.05)
     enhancer = ImageEnhance.Color(image)
@@ -80,9 +80,36 @@ async def enhance_image(image_bytes: bytes) -> bytes:
     except Exception as e:
         print(f"CodeFormer failed: {e} — returning GFPGAN result.")
         return gfpgan_img.content
+    
+        # Шаг 3 — Ретушь кожи
+    try:
+        skin_retouch_url = replicate.run(
+            "torrikabe-ai/idnbeauty:latest",
+            input={
+                "image": open("codeformer_output.jpg", "rb"),
+                "prompt": (
+                    "Softly smooth skin and remove facial creases, blemishes, and harsh shadows while fully preserving the face shape, identity, and expression. "
+                    "No makeup, no exaggeration. Keep the photo realistic and subtle."
+                ),
+                "model": "dev",
+                "guidance_scale": 1,
+                "prompt_strength": 0.1,
+                "num_inference_steps": 28,
+                "output_format": "png",
+                "output_quality": 80,
+                "go_fast": False,
+                "lora_scale": 0.94,
+                "extra_lora_scale": 0.22
+            }
+        )
+        skin_retouch_img = requests.get(str(skin_retouch_url[0]))
+        final_image = Image.open(io.BytesIO(skin_retouch_img.content)).convert("RGB")
+    except Exception as e:
+        print(f"Skin retouching failed: {e} — returning CodeFormer result.")
+        final_image = Image.open("codeformer_output.jpg").convert("RGB")
 
-    # Шаг 3 — Color Correction
-    final_image = apply_color_correction(image_cf)
+    # Шаг 4 — Color Correction (УЖЕ ПОСЛЕ ретуши)
+    final_image = apply_color_correction(final_image)
 
     # Финальный результат
     final_bytes = io.BytesIO()
