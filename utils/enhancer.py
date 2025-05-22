@@ -64,7 +64,7 @@ async def enhance_image(image_bytes: bytes) -> bytes:
     # Шаг 2 — Ретушь кожи
     try:
         skin_retouch_url = replicate.run(
-            "torrikabe-ai/idnbeauty:latest",
+            "torrikabe-ai/idnbeauty:5f994656b3b88df2e21a3cf0a81371d66bd6ff45171f3e5618bb314bdc8b64b1",
             input={
                 "image": open("codeformer_output.jpg", "rb"),
                 "prompt": (
