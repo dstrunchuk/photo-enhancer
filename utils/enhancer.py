@@ -21,18 +21,25 @@ def has_face(image_path: str) -> bool:
     faces = face_analyzer.get(img_np)
     return len(faces) > 0
 
-def conditional_brightness(image: Image.Image) -> Image.Image:
-    grayscale = image.convert("L")
-    avg_brightness = np.mean(np.array(grayscale))
+def get_face_brightness(image: Image.Image) -> float:
+    img_np = np.array(image)
+    faces = face_analyzer.get(img_np)
+    if not faces:
+        return np.mean(np.array(image.convert("L")))
 
-    # Яркость фото от 0 до 255 — масштабируем в диапазон нужного коэффициента
-    # Чем темнее, тем больше коэффициент
-    # Например: при avg = 80 → 1.5, при avg = 160 → 1.2
+    # Берем первую найденную область
+    face = faces[0]
+    x1, y1, x2, y2 = map(int, face.bbox)
+    face_crop = image.crop((x1, y1, x2, y2)).convert("L")
+    return np.mean(np.array(face_crop))
+
+def conditional_brightness(image: Image.Image) -> Image.Image:
+    avg_brightness = get_face_brightness(image)
+
     brightness_factor = np.clip(
-        1.5 - (avg_brightness - 80) * 0.00375,  # 0.00375 = (1.5 - 1.2) / (160 - 80)
+        1.5 - (avg_brightness - 80) * 0.00375,
         1.2, 1.5
     )
-
     return ImageEnhance.Brightness(image).enhance(brightness_factor)
 
 # Лёгкая цветокоррекция + акцент на чёткость
