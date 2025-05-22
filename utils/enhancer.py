@@ -69,18 +69,18 @@ async def enhance_image(image_bytes: bytes) -> bytes:
             input={
                 "image": open("codeformer_output.jpg", "rb"),
                 "prompt": (
-                    "Subtly reduce under-eye shadows and nasolabial folds. "
-                    "Keep skin texture, lips, teeth, and all facial features fully intact. "
-                    "Do not enhance or invent any new elements. Preserve identity, lighting, and realism."
+                    "Apply soft and minimal skin retouching. Remove only visible facial shadows and deep creases. "
+                    "Do not change eyes, lips, or face shape. Preserve all original facial features and textures. "
+                    "The result must look natural and realistic with no visible edits."
                 ),
                 "model": "dev",
-                "guidance_scale": 0.55,  # усилено с 0.6
-                "prompt_strength": 0.04,  # было 0.05
+                "guidance_scale": 0.6,
+                "prompt_strength": 0.05,
                 "num_inference_steps": 28,
                 "output_format": "png",
                 "output_quality": 80,
                 "go_fast": False,
-                "lora_scale": 0.75,  # немного увеличено
+                "lora_scale": 0.80,
                 "extra_lora_scale": 0.15
             }
         )
