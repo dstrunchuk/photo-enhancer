@@ -6,6 +6,7 @@ import io
 import numpy as np
 from insightface.app import FaceAnalysis
 import onnxruntime
+import numpy as np
 
 # Инициализация клиента Replicate
 replicate_client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
@@ -20,9 +21,24 @@ def has_face(image_path: str) -> bool:
     faces = face_analyzer.get(img_np)
     return len(faces) > 0
 
+def conditional_brightness(image: Image.Image) -> Image.Image:
+    # Переводим в numpy и считаем среднюю яркость (от 0 до 255)
+    grayscale = image.convert("L")
+    avg_brightness = np.mean(np.array(grayscale))
+
+    # Логика: если темное — усиливаем сильнее, если светлое — мягче
+    if avg_brightness < 100:
+        factor = 1.50  # тёмное фото — сильно осветляем
+    elif avg_brightness < 160:
+        factor = 1.35  # средняя яркость — умеренно
+    else:
+        factor = 1.20  # уже светлое — слегка
+
+    return ImageEnhance.Brightness(image).enhance(factor)
+
 # Лёгкая цветокоррекция + акцент на чёткость
 def apply_final_polish(image: Image.Image) -> Image.Image:
-    image = ImageEnhance.Brightness(image).enhance(1.50)
+    image = conditional_brightness(image)
     image = ImageEnhance.Contrast(image).enhance(1.10)
     image = ImageEnhance.Color(image).enhance(1.10)
     image = ImageEnhance.Sharpness(image).enhance(1.50)  # Сильнее подчёркиваем резкость
