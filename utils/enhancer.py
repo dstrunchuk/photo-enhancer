@@ -42,23 +42,32 @@ async def enhance_image(image_bytes: bytes) -> bytes:
     if not has_face("input.jpg"):
         raise Exception("Лицо не обнаружено. Пожалуйста, загрузите чёткий портрет.")
 
-    # Шаг 1 — CodeFormer
+    # Шаг 1 — IDNBeauty вместо CodeFormer
     try:
-        codeformer_url = replicate.run(
-            "lucataco/codeformer:78f2bab438ab0ffc85a68cdfd316a2ecd3994b5dd26aa6b3d203357b45e5eb1b",
+        idnbeauty_result = replicate.run(
+            "torrikabe-ai/idnbeauty:5f994656b3b88df2e21a3cf0a81371d66bd6ff45171f3e5618bb314bdc8b64b1",
             input={
                 "image": open("input.jpg", "rb"),
-                "upscale": 1,
-                "face_upsample": False,
-                "background_enhance": False,
-                "codeformer_fidelity": 0.8
+                "prompt": (
+                    "Subtle and natural skin retouching. Lightly reduce under-eye bags and strong shadows. "
+                    "Preserve full facial texture, structure, identity, and natural expression. Do not apply makeup."
+                ),
+                "model": "dev",
+                "guidance_scale": 0.5,
+                "prompt_strength": 0.05,
+                "num_inference_steps": 28,
+                "output_format": "png",
+                "output_quality": 85,
+                "go_fast": False,
+                "lora_scale": 0.85,
+                "extra_lora_scale": 0.15
             }
         )
-        codeformer_img = requests.get(codeformer_url)
-        image_cf = Image.open(io.BytesIO(codeformer_img.content)).convert("RGB")
+        response = requests.get(str(idnbeauty_result[0]))
+        image_cf = Image.open(io.BytesIO(response.content)).convert("RGB")
     except Exception as e:
-        print(f"CodeFormer failed: {e}")
-        raise Exception("Ошибка при обработке CodeFormer")
+        print(f"IDNBeauty failed: {e}")
+        raise Exception("Ошибка при обработке IDNBeauty")
 
     # Шаг 2 — Финальная обработка
     final_image = apply_studio_polish(image_cf)
