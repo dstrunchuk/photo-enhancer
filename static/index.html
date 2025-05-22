@@ -6,6 +6,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 16px;
+      z-index: 1000;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body class="premium-bg">
   <div class="container">
@@ -20,69 +49,63 @@
     <img id="preview" alt="Превью" style="display: none;" />
 
     <button id="enhanceBtn" onclick="uploadPhoto()">Улучшить</button>
-    <div id="loading" style="display: none;">Обработка...</div>
+
+    <!-- Анимация обработки -->
+    <div id="loading" style="display: none;" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <p>Улучшение может занять до 3 минут…</p>
+    </div>
   </div>
 
   <script>
     Telegram.WebApp.ready();
   
-    // Проверка наличия Telegram initData
     const tgUser = Telegram.WebApp.initDataUnsafe?.user;
     const chatId = tgUser?.id;
-  
-    console.log("Telegram.WebApp.initDataUnsafe:", Telegram.WebApp.initDataUnsafe);
-    console.log("Полученный chat_id:", chatId);
-  
+
     if (!chatId) {
       alert("❌ chat_id не получен. Убедитесь, что WebApp открыт через Telegram-кнопку.");
-    } else {
-      console.log("✅ chat_id получен:", chatId);
     }
-  
+
     function previewPhoto(input) {
       const preview = document.getElementById("preview");
-  
       if (input.files && input.files[0]) {
         const reader = new FileReader();
-  
         reader.onload = function (e) {
           preview.src = e.target.result;
           preview.style.display = "block";
           preview.className = "preview-photo";
-  
-          // Сохраняем оригинал для сравнения
           sessionStorage.setItem("previewImage", e.target.result);
         };
-  
         reader.readAsDataURL(input.files[0]);
       }
     }
-  
+
     async function uploadPhoto() {
       const input = document.getElementById("fileInput");
       const loading = document.getElementById("loading");
-  
+
       if (!input.files[0]) {
         alert("Пожалуйста, выберите фото");
         return;
       }
-  
-      loading.style.display = "block";
-  
+
+      loading.style.display = "flex";
+
       const formData = new FormData();
       formData.append("file", input.files[0]);
-  
+
       try {
         const response = await fetch("/upload/", {
           method: "POST",
           body: formData
         });
-  
+
         if (!response.ok) throw new Error("Ошибка обработки");
-  
+
         const blob = await response.blob();
         const imageUrl = URL.createObjectURL(blob);
-  
+
         sessionStorage.setItem("resultImage", imageUrl);
         window.location.href = "result.html";
       } catch (err) {
