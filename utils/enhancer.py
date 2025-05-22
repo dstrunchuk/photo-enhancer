@@ -58,10 +58,10 @@ async def enhance_image(image_bytes: bytes) -> bytes:
             "sczhou/codeformer:cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2",
             input={
                 "image": open("gfpgan_resized.jpg", "rb"),
-                "upscale": 2,
+                "upscale": 1,
                 "face_upsample": True,
                 "background_enhance": True,
-                "codeformer_fidelity": 0.7
+                "codeformer_fidelity": 0.8
             }
         )
         codeformer_img = requests.get(codeformer_url)
@@ -87,21 +87,40 @@ async def enhance_image(image_bytes: bytes) -> bytes:
     else:
         esrgan_input_path = "codeformer_output.jpg"
 
-     # Шаг 3 — Real-ESRGAN (финальное улучшение)
+     # Шаг 3 — DiffBIR (вместо Real-ESRGAN или IDNBeauty)
     try:
-        esrgan_url = replicate.run(
-            "nightmareai/real-esrgan:f121d640bd286e1fdc67f9799164c1d5be36ff74576ee11c803ae5b665dd46aa",
+        diffbir_url = replicate.run(
+            "zsxkib/diffbir:51ed1464d8bbbaca811153b051d3b09ab42f0bdeb85804ae26ba323d7a66a4ac",
             input={
-                "image": open(esrgan_input_path, "rb"),
-                "scale": 2,
-                "face_enhance": False
+                "input": open("codeformer_output.jpg", "rb"),
+                "steps": 50,
+                "tiled": False,
+                "tile_size": 512,
+                "tile_stride": 256,
+                "repeat_times": 1,
+                "use_guidance": False,
+                "guidance_scale": 0,
+                "guidance_space": "latent",
+                "guidance_repeat": 5,
+                "only_center_face": False,
+                "guidance_time_stop": -1,
+                "guidance_time_start": 1001,
+                "background_upsampler": "DiffBIR",
+                "face_detection_model": "retinaface_resnet50",
+                "upscaling_model_type": "faces",
+                "restoration_model_type": "general_scenes",
+                "super_resolution_factor": 2,
+                "disable_preprocess_model": False,
+                "reload_restoration_model": False,
+                "background_upsampler_tile": 400,
+                "background_upsampler_tile_stride": 400
             }
         )
-        esrgan_img = requests.get(esrgan_url)
-        final_image = Image.open(io.BytesIO(esrgan_img.content)).convert("RGB")
+        diffbir_img = requests.get(str(diffbir_url[0]))
+        final_image = Image.open(io.BytesIO(diffbir_img.content)).convert("RGB")
 
     except Exception as e:
-        print(f"Real-ESRGAN failed: {e} — returning CodeFormer result.")
+        print(f"DiffBIR failed: {e} — returning CodeFormer result.")
         final_image = Image.open("codeformer_output.jpg").convert("RGB")
      
 
