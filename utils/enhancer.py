@@ -35,11 +35,16 @@ def get_face_brightness(image: Image.Image) -> float:
 
 def conditional_brightness(image: Image.Image) -> Image.Image:
     avg_brightness = get_face_brightness(image)
+    print(f"Средняя яркость лица: {avg_brightness}")  # для отладки
 
-    brightness_factor = np.clip(
-        1.5 - (avg_brightness - 80) * 0.00375,
-        1.2, 1.5
-    )
+    # Новая логика адаптивной яркости
+    if avg_brightness > 160:
+        brightness_factor = 1.0
+    elif avg_brightness > 130:
+        brightness_factor = 1.15
+    else:
+        brightness_factor = np.clip(1.5 - (avg_brightness - 80) * 0.00375, 1.2, 1.5)
+
     return ImageEnhance.Brightness(image).enhance(brightness_factor)
 
 # Лёгкая цветокоррекция + акцент на чёткость
@@ -71,7 +76,7 @@ async def enhance_image(image_bytes: bytes) -> bytes:
                 ),
                 "model": "dev",
                 "guidance_scale": 0.5,
-                "prompt_strength": 0.09,
+                "prompt_strength": 0.07,
                 "num_inference_steps": 24,
                 "output_format": "png",
                 "output_quality": 90,
