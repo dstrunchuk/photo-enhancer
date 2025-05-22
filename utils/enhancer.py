@@ -7,6 +7,14 @@ import numpy as np
 from insightface.app import FaceAnalysis
 import onnxruntime
 
+def lighten_shadows(image: Image.Image, factor=1.25) -> Image.Image:
+    """ Осветлить тени и тёмные участки изображения, имитируя мягкий свет """
+    img_np = np.array(image).astype(np.float32) / 255.0
+    mask = img_np < 0.5  # только темные участки
+    img_np[mask] = np.clip(img_np[mask] * factor, 0, 1.0)
+    img_np = (img_np * 255).astype(np.uint8)
+    return Image.fromarray(img_np)
+
 # Инициализация клиента Replicate
 replicate_client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
 
@@ -23,29 +31,16 @@ def has_face(image_path: str) -> bool:
 
 # Цветокоррекция с теплом и улучшенной резкостью
 def apply_color_correction(image: Image.Image) -> Image.Image:
-    # Яркость — чуть ниже, чем была
+    image = lighten_shadows(image, factor=1.35)  # Осветляем тени
     enhancer = ImageEnhance.Brightness(image)
     image = enhancer.enhance(1.15)
-
-    # Контраст — слегка, чтобы не потерять мягкость
     enhancer = ImageEnhance.Contrast(image)
-    image = enhancer.enhance(1.01)
-
-    # Насыщенность цвета
+    image = enhancer.enhance(1.04)
     enhancer = ImageEnhance.Color(image)
-    image = enhancer.enhance(1.08)
-
-    # Резкость — важный момент
+    image = enhancer.enhance(1.06)
     enhancer = ImageEnhance.Sharpness(image)
-    image = enhancer.enhance(1.08)
-
-    # Тёплый фильтр — усиливаем красный канал
-    r, g, b = image.split()
-    r = r.point(lambda i: min(255, int(i * 1.06)))  # усилить красный
-    image = Image.merge("RGB", (r, g, b))
-
+    image = enhancer.enhance(1.03)
     return image
-
 # Основная функция
 async def enhance_image(image_bytes: bytes) -> bytes:
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
