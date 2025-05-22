@@ -7,11 +7,14 @@ import numpy as np
 from insightface.app import FaceAnalysis
 import onnxruntime
 
-def lighten_shadows(image: Image.Image, factor=1.25) -> Image.Image:
-    """ Осветлить тени и тёмные участки изображения, имитируя мягкий свет """
+def lighten_shadows(image: Image.Image, factor=1.2) -> Image.Image:
     img_np = np.array(image).astype(np.float32) / 255.0
-    mask = img_np < 0.5  # только темные участки
-    img_np[mask] = np.clip(img_np[mask] * factor, 0, 1.0)
+    hsv = matplotlib.colors.rgb_to_hsv(img_np)
+    v = hsv[..., 2]
+    mask = v < 0.5
+    v[mask] = np.clip(v[mask] * factor, 0, 1.0)
+    hsv[..., 2] = v
+    img_np = matplotlib.colors.hsv_to_rgb(hsv)
     img_np = (img_np * 255).astype(np.uint8)
     return Image.fromarray(img_np)
 
@@ -102,6 +105,6 @@ async def enhance_image(image_bytes: bytes) -> bytes:
 
     # Возврат результата
     final_bytes = io.BytesIO()
-    final_image.save(final_bytes, format="JPEG", quality=95, optimize=False)
+    final_image.save(final_bytes, format="JPEG", quality=99, subsampling=0)
     final_bytes.seek(0)
     return final_bytes.read()
