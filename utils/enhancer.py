@@ -38,7 +38,7 @@ def conditional_brightness(image: Image.Image) -> Image.Image:
     print(f"Средняя яркость лица: {avg_brightness}")  # для отладки
 
     # Новая логика адаптивной яркости
-    if avg_brightness > 160:
+    if avg_brightness > 170:
         brightness_factor = 1.0
     elif avg_brightness > 130:
         brightness_factor = 1.15
