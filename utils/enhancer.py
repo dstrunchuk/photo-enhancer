@@ -51,20 +51,36 @@ async def enhance_image(image_bytes: bytes) -> bytes:
     if not has_face("input.jpg"):
         raise Exception("Лицо не обнаружено. Пожалуйста, загрузите чёткий портрет.")
 
-    # Шаг 1 — GFPGAN (новая версия)
-    gfpgan_url = replicate.run(
-        "xinntao/gfpgan:6129309904ce4debfde78de5c209bce0022af40e197e132f08be8ccce3050393",
-        input={
-            "img": open("input.jpg", "rb"),
-            "scale": 1,
-            "version": "v1.4"
-        }
-    )
-    gfpgan_img = requests.get(gfpgan_url)
-    with open("gfpgan_output.jpg", "wb") as f:
-        f.write(gfpgan_img.content)
+    # Шаг 1 — GFPGAN (новая версия с безопасным масштабом и сжатием)
+    try:
+        gfpgan_url = replicate.run(
+            "xinntao/gfpgan:6129309904ce4debfde78de5c209bce0022af40e197e132f08be8ccce3050393",
+            input={
+                "img": open("input.jpg", "rb"),
+                "scale": 1,  # уменьшено до 1, чтобы не перегружать
+               "version": "v1.4"
+            }
+        )
+        gfpgan_img = requests.get(gfpgan_url)
+    
+    # Безопасное открытие и сжатие результата
+        gfpgan_image = Image.open(io.BytesIO(gfpgan_img.content)).convert("RGB")
 
-    compress_and_resize("gfpgan_output.jpg", "gfpgan_resized.jpg")
+    # Ограничим изображение по общей площади (например, 2500000 пикселей)
+        if gfpgan_image.width * gfpgan_image.height > 2500000:
+            scale = (2500000 / (gfpgan_image.width * gfpgan_image.height)) ** 0.5
+            new_size = (int(gfpgan_image.width * scale), int(gfpgan_image.height * scale))
+            gfpgan_image = gfpgan_image.resize(new_size, Image.LANCZOS)
+
+    # Сохраняем с оптимизированным JPEG
+        gfpgan_image.save("gfpgan_output.jpg", format="JPEG", quality=90, optimize=True)
+
+    # Далее стандартное уменьшение (если нужно для CodeFormer)
+        compress_and_resize("gfpgan_output.jpg", "gfpgan_resized.jpg")
+
+    except Exception as e:
+        print(f"GFPGAN failed: {e}")
+        raise Exception("Ошибка при обработке GFPGAN")
 
     # Шаг 2 — CodeFormer (обновлённая модель)
     try:
