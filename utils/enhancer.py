@@ -23,14 +23,29 @@ def has_face(image_path: str) -> bool:
 
 # Цветокоррекция
 def apply_color_correction(image: Image.Image) -> Image.Image:
+    # 1. Повышаем яркость и подсвечиваем тени
     enhancer = ImageEnhance.Brightness(image)
-    image = enhancer.enhance(1.20)
-    enhancer = ImageEnhance.Contrast(image)
-    image = enhancer.enhance(1.05)
+    image = enhancer.enhance(1.28)  # ярче, чем раньше
+
+    # 2. Мягко осветляем тени (только тёмные участки)
+    image = image.point(lambda p: p * 1.03 if p < 130 else p)
+
+    # 3. Немного усиливаем цвет
     enhancer = ImageEnhance.Color(image)
-    image = enhancer.enhance(1.06)
+    image = enhancer.enhance(1.10)
+
+    # 4. Контраст делаем чуть ниже, чтобы сохранить мягкость
+    enhancer = ImageEnhance.Contrast(image)
+    image = enhancer.enhance(1.02)
+
+    # 5. Повторное мягкое осветление всех тонов
+    enhancer = ImageEnhance.Brightness(image)
+    image = enhancer.enhance(1.12)
+
+    # 6. Немного резкости
     enhancer = ImageEnhance.Sharpness(image)
     image = enhancer.enhance(1.03)
+
     return image
 
 # Основная функция
@@ -93,6 +108,6 @@ async def enhance_image(image_bytes: bytes) -> bytes:
 
     # Возврат результата
     final_bytes = io.BytesIO()
-    final_image.save(final_bytes, format="JPEG")
+    final_image.save(final_bytes, format="JPEG", quality=95, optimize=False)
     final_bytes.seek(0)
     return final_bytes.read()
