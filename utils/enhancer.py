@@ -22,10 +22,10 @@ def has_face(image_path: str) -> bool:
 
 # Лёгкая цветокоррекция + акцент на чёткость
 def apply_final_polish(image: Image.Image) -> Image.Image:
-    image = ImageEnhance.Brightness(image).enhance(1.08)
-    image = ImageEnhance.Contrast(image).enhance(1.08)
-    image = ImageEnhance.Color(image).enhance(1.04)
-    image = ImageEnhance.Sharpness(image).enhance(1.25)  # Сильнее подчёркиваем резкость
+    image = ImageEnhance.Brightness(image).enhance(1.20)
+    image = ImageEnhance.Contrast(image).enhance(1.10)
+    image = ImageEnhance.Color(image).enhance(1.10)
+    image = ImageEnhance.Sharpness(image).enhance(1.50)  # Сильнее подчёркиваем резкость
     return image
 
 # Основная функция
@@ -49,7 +49,7 @@ async def enhance_image(image_bytes: bytes) -> bytes:
                 ),
                 "model": "dev",
                 "guidance_scale": 0.5,
-                "prompt_strength": 0.03,
+                "prompt_strength": 0.10,
                 "num_inference_steps": 24,
                 "output_format": "png",
                 "output_quality": 90,
