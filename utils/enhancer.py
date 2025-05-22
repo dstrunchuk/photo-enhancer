@@ -8,16 +8,20 @@ from insightface.app import FaceAnalysis
 import onnxruntime
 import matplotlib.colors
 
-def lighten_shadows(image: Image.Image, factor=1.2) -> Image.Image:
-    img_np = np.array(image).astype(np.float32) / 255.0
-    hsv = matplotlib.colors.rgb_to_hsv(img_np)
-    v = hsv[..., 2]
-    mask = v < 0.5
-    v[mask] = np.clip(v[mask] * factor, 0, 1.0)
-    hsv[..., 2] = v
-    img_np = matplotlib.colors.hsv_to_rgb(hsv)
-    img_np = (img_np * 255).astype(np.uint8)
-    return Image.fromarray(img_np)
+def brighten_shadows(image: Image.Image, threshold=100, brightness_factor=1.15):
+    img_np = np.array(image)
+    hsv = Image.fromarray(img_np).convert('HSV')
+    h, s, v = hsv.split()
+
+    v_np = np.array(v, dtype=np.uint8)
+    mask = v_np < threshold
+
+    # Увеличим яркость только где значение V ниже порога
+    v_np[mask] = np.clip(v_np[mask] * brightness_factor, 0, 255).astype(np.uint8)
+
+    new_v = Image.fromarray(v_np, mode='L')
+    hsv_new = Image.merge('HSV', (h, s, new_v)).convert('RGB')
+    return hsv_new
 
 # Инициализация клиента Replicate
 replicate_client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
@@ -35,15 +39,16 @@ def has_face(image_path: str) -> bool:
 
 # Цветокоррекция с теплом и улучшенной резкостью
 def apply_color_correction(image: Image.Image) -> Image.Image:
-    image = lighten_shadows(image, factor=1.35)  # Осветляем тени
+    image = brighten_shadows(image, threshold=110, brightness_factor=1.25)
+
     enhancer = ImageEnhance.Brightness(image)
-    image = enhancer.enhance(1.15)
+    image = enhancer.enhance(1.08)
     enhancer = ImageEnhance.Contrast(image)
     image = enhancer.enhance(1.04)
     enhancer = ImageEnhance.Color(image)
-    image = enhancer.enhance(1.06)
+    image = enhancer.enhance(1.05)
     enhancer = ImageEnhance.Sharpness(image)
-    image = enhancer.enhance(1.03)
+    image = enhancer.enhance(1.02)
     return image
 # Основная функция
 async def enhance_image(image_bytes: bytes) -> bytes:
