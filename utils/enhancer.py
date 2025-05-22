@@ -49,8 +49,8 @@ async def enhance_image(image_bytes: bytes) -> bytes:
             input={
                 "image": open("input.jpg", "rb"),
                 "upscale": 1,
-                "face_upsample": True,
-                "background_enhance": True,
+                "face_upsample": False,
+                "background_enhance": False,
                 "codeformer_fidelity": 0.8
             }
         )
