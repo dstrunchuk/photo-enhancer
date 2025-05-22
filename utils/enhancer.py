@@ -61,7 +61,7 @@ async def enhance_image(image_bytes: bytes) -> bytes:
                 "upscale": 2,
                 "face_upsample": True,
                 "background_enhance": True,
-                "codeformer_fidelity": 0.8
+                "codeformer_fidelity": 0.7
             }
         )
         codeformer_img = requests.get(codeformer_url)
@@ -93,7 +93,7 @@ async def enhance_image(image_bytes: bytes) -> bytes:
             "nightmareai/real-esrgan:f121d640bd286e1fdc67f9799164c1d5be36ff74576ee11c803ae5b665dd46aa",
             input={
                 "image": open(esrgan_input_path, "rb"),
-                "scale": 1,
+                "scale": 2,
                 "face_enhance": False
             }
         )
