@@ -24,7 +24,6 @@ def has_face(image_path: str) -> bool:
 
 # Цветокоррекция с теплом и улучшенной резкостью
 def apply_color_correction(image: Image.Image) -> Image.Image:
-    image = brighten_shadows(image, threshold=110, brightness_factor=1.25)
 
     enhancer = ImageEnhance.Brightness(image)
     image = enhancer.enhance(1.20)
