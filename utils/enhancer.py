@@ -21,39 +21,37 @@ def has_face(image_path: str) -> bool:
     faces = face_analyzer.get(img_np)
     return len(faces) > 0
 
-def get_face_brightness(image: Image.Image) -> float:
+# Проверка яркости именно на текущем изображении
+def get_face_brightness_live(image: Image.Image) -> float:
     img_np = np.array(image)
     faces = face_analyzer.get(img_np)
     if not faces:
         return np.mean(np.array(image.convert("L")))
 
-    # Берем первую найденную область
     face = faces[0]
     x1, y1, x2, y2 = map(int, face.bbox)
     face_crop = image.crop((x1, y1, x2, y2)).convert("L")
     return np.mean(np.array(face_crop))
 
+# Регулируем осветление по яркости лица
 def conditional_brightness(image: Image.Image) -> Image.Image:
-    avg_brightness = get_face_brightness(image)
+    avg_brightness = get_face_brightness_live(image)
 
-    if avg_brightness > 170:
-        brightness_factor = 1.0  # вообще не осветляем
+    if avg_brightness > 160:
+        brightness_factor = 1.00
     elif avg_brightness > 130:
         brightness_factor = 1.10
     else:
-        brightness_factor = np.clip(
-            1.5 - (avg_brightness - 80) * 0.00375,
-            1.20, 1.50
-        )
+        brightness_factor = np.clip(1.5 - (avg_brightness - 80) * 0.00375, 1.2, 1.5)
 
     return ImageEnhance.Brightness(image).enhance(brightness_factor)
 
-# Лёгкая цветокоррекция + акцент на чёткость
+# Цветокоррекция с адаптивной яркостью
 def apply_final_polish(image: Image.Image) -> Image.Image:
     image = conditional_brightness(image)
     image = ImageEnhance.Contrast(image).enhance(1.10)
     image = ImageEnhance.Color(image).enhance(1.10)
-    image = ImageEnhance.Sharpness(image).enhance(1.50)  # Сильнее подчёркиваем резкость
+    image = ImageEnhance.Sharpness(image).enhance(1.50)
     return image
 
 # Основная функция
