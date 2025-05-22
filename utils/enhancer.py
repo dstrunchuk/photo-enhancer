@@ -51,10 +51,14 @@ async def enhance_image(image_bytes: bytes) -> bytes:
     if not has_face("input.jpg"):
         raise Exception("Лицо не обнаружено. Пожалуйста, загрузите чёткий портрет.")
 
-    # Шаг 1 — GFPGAN
+    # Шаг 1 — GFPGAN (новая версия)
     gfpgan_url = replicate.run(
-        "tencentarc/gfpgan:0fbacf7afc6c144e5be9767cff80f25aff23e52b0708f17e20f9879b2f21516c",
-        input={"img": open("input.jpg", "rb")}
+        "xinntao/gfpgan:6129309904ce4debfde78de5c209bce0022af40e197e132f08be8ccce3050393",
+        input={
+            "img": open("input.jpg", "rb"),
+            "scale": 2,
+            "version": "v1.4"
+        }
     )
     gfpgan_img = requests.get(gfpgan_url)
     with open("gfpgan_output.jpg", "wb") as f:
