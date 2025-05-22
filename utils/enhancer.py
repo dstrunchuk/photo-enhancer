@@ -22,7 +22,7 @@ def has_face(image_path: str) -> bool:
 
 # Лёгкая цветокоррекция + акцент на чёткость
 def apply_final_polish(image: Image.Image) -> Image.Image:
-    image = ImageEnhance.Brightness(image).enhance(1.20)
+    image = ImageEnhance.Brightness(image).enhance(1.50)
     image = ImageEnhance.Contrast(image).enhance(1.10)
     image = ImageEnhance.Color(image).enhance(1.10)
     image = ImageEnhance.Sharpness(image).enhance(1.50)  # Сильнее подчёркиваем резкость
