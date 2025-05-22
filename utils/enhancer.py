@@ -21,15 +21,6 @@ def has_face(image_path: str) -> bool:
     faces = face_analyzer.get(img_np)
     return len(faces) > 0
 
-# Сжатие и уменьшение изображения
-def compress_and_resize(image_path: str, output_path: str, max_size=1600):
-    image = Image.open(image_path).convert("RGB")
-    if max(image.size) > max_size:
-        scale = max_size / max(image.size)
-        new_size = (int(image.width * scale), int(image.height * scale))
-        image = image.resize(new_size, Image.LANCZOS)
-    image.save(output_path, format="JPEG", quality=90, optimize=True)
-
 # Цветокоррекция
 def apply_color_correction(image: Image.Image) -> Image.Image:
     enhancer = ImageEnhance.Brightness(image)
@@ -51,43 +42,12 @@ async def enhance_image(image_bytes: bytes) -> bytes:
     if not has_face("input.jpg"):
         raise Exception("Лицо не обнаружено. Пожалуйста, загрузите чёткий портрет.")
 
-    # Шаг 1 — GFPGAN (новая версия с безопасным масштабом и сжатием)
-    try:
-        gfpgan_url = replicate.run(
-            "xinntao/gfpgan:6129309904ce4debfde78de5c209bce0022af40e197e132f08be8ccce3050393",
-            input={
-                "img": open("input.jpg", "rb"),
-                "scale": 1,  # уменьшено до 1, чтобы не перегружать
-               "version": "v1.4"
-            }
-        )
-        gfpgan_img = requests.get(gfpgan_url)
-    
-    # Безопасное открытие и сжатие результата
-        gfpgan_image = Image.open(io.BytesIO(gfpgan_img.content)).convert("RGB")
-
-    # Ограничим изображение по общей площади (например, 2500000 пикселей)
-        if gfpgan_image.width * gfpgan_image.height > 2500000:
-            scale = (2500000 / (gfpgan_image.width * gfpgan_image.height)) ** 0.5
-            new_size = (int(gfpgan_image.width * scale), int(gfpgan_image.height * scale))
-            gfpgan_image = gfpgan_image.resize(new_size, Image.LANCZOS)
-
-    # Сохраняем с оптимизированным JPEG
-        gfpgan_image.save("gfpgan_output.jpg", format="JPEG", quality=90, optimize=True)
-
-    # Далее стандартное уменьшение (если нужно для CodeFormer)
-        compress_and_resize("gfpgan_output.jpg", "gfpgan_resized.jpg")
-
-    except Exception as e:
-        print(f"GFPGAN failed: {e}")
-        raise Exception("Ошибка при обработке GFPGAN")
-
-    # Шаг 2 — CodeFormer (обновлённая модель)
+    # Шаг 1 — CodeFormer (обновлённая модель)
     try:
         codeformer_url = replicate.run(
             "lucataco/codeformer:78f2bab438ab0ffc85a68cdfd316a2ecd3994b5dd26aa6b3d203357b45e5eb1b",
             input={
-                "image": open("gfpgan_resized.jpg", "rb"),
+                "image": open("input.jpg", "rb"),
                 "upscale": 1,
                 "face_upsample": True,
                 "background_enhance": True,
@@ -98,10 +58,10 @@ async def enhance_image(image_bytes: bytes) -> bytes:
         image_cf = Image.open(io.BytesIO(codeformer_img.content)).convert("RGB")
         image_cf.save("codeformer_output.jpg", format="JPEG", quality=95)
     except Exception as e:
-        print(f"CodeFormer failed: {e} — returning GFPGAN result.")
-        return gfpgan_img.content
-    
-        # Шаг 3 — Ретушь кожи
+        print(f"CodeFormer failed: {e}")
+        raise Exception("Ошибка при обработке CodeFormer")
+
+    # Шаг 2 — Ретушь кожи
     try:
         skin_retouch_url = replicate.run(
             "torrikabe-ai/idnbeauty:latest",
@@ -128,10 +88,10 @@ async def enhance_image(image_bytes: bytes) -> bytes:
         print(f"Skin retouching failed: {e} — returning CodeFormer result.")
         final_image = Image.open("codeformer_output.jpg").convert("RGB")
 
-    # Шаг 4 — Color Correction (УЖЕ ПОСЛЕ ретуши)
+    # Шаг 3 — Цветокоррекция
     final_image = apply_color_correction(final_image)
 
-    # Финальный результат
+    # Возврат результата
     final_bytes = io.BytesIO()
     final_image.save(final_bytes, format="JPEG")
     final_bytes.seek(0)
