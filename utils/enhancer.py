@@ -74,8 +74,8 @@ async def enhance_image(image_bytes: bytes) -> bytes:
                     "Keep skin texture, identity, and facial features unchanged. No artificial edits or smoothing."
                 ),
                 "model": "dev",
-                "guidance_scale": 0.9,
-                "prompt_strength": 0.14,
+                "guidance_scale": 0.7,
+                "prompt_strength": 0.11,
                 "num_inference_steps": 24,
                 "output_format": "png",
                 "output_quality": 90,
