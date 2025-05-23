@@ -39,7 +39,7 @@ def conditional_brightness(image: Image.Image) -> Image.Image:
 
     if avg_brightness > 150:
         brightness_factor = 1.00
-    elif avg_brightness > 130:
+    elif avg_brightness > 120:
         brightness_factor = 1.08
     else:
         brightness_factor = np.clip(1.4 - (avg_brightness - 80) * 0.00375, 1.2, 1.4)
