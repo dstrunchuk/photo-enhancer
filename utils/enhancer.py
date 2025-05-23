@@ -75,7 +75,7 @@ async def enhance_image(image_bytes: bytes) -> bytes:
                 ),
                 "model": "dev",
                 "guidance_scale": 0.7,
-                "prompt_strength": 0.12,
+                "prompt_strength": 0.11,
                 "num_inference_steps": 24,
                 "output_format": "png",
                 "output_quality": 90,
