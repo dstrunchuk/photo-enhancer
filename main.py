@@ -1,9 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Request, Form, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from utils.enhancer import enhance_image
 from fastapi.staticfiles import StaticFiles
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 import openai
@@ -12,6 +10,7 @@ import io
 import os
 import telegram
 import traceback
+from utils.enhancer import enhance_image
 
 # Telegram и OpenAI токены
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -34,21 +33,28 @@ class PhotoData(BaseModel):
     chat_id: int
     photo_url: str
 
+# Проверка, написан ли текст на русском
+def is_likely_russian(text: str) -> bool:
+    import re
+    return bool(re.search(r'[а-яА-ЯёЁ]', text))
+
 # Перевод с русского на английский (если нужно)
-async def translate_prompt(russian_text: str) -> str:
-    if not russian_text.strip():
+async def translate_prompt(prompt: str) -> str:
+    if not prompt.strip():
         return ""
+    if not is_likely_russian(prompt):
+        return prompt.strip()
     try:
         response = await openai.ChatCompletion.acreate(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a translation assistant. Translate from Russian to natural English, preserving meaning and nuance. Do not add anything."},
-                {"role": "user", "content": russian_text}
+                {"role": "user", "content": prompt.strip()}
             ]
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print("Translation error:", e)
+        print("[TRANSLATION ERROR]", e)
         return ""
 
 # Эндпоинт загрузки фото
@@ -67,6 +73,7 @@ async def upload_image(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+# Telegram webhook
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
@@ -123,4 +130,5 @@ async def send_photo_upload(file: UploadFile = File(...), chat_id: int = Form(..
         print("[SEND ERROR]", str(e))
         return JSONResponse(status_code=500, content={"error": "Ошибка Telegram"})
 
+# Подключение frontend
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

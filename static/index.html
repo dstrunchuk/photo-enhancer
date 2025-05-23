@@ -49,13 +49,12 @@
     <img id="preview" alt="Превью" style="display: none;" />
 
     <div class="form-block">
-      <label for="promptInput">Ваш запрос (например: «Убрать морщины, сделать кожу ярче»)</label>
-      <input type="text" id="promptInput" placeholder="Оставьте пустым для автоулучшения" />
+      <label for="prompt">Что улучшить на фото?</label>
+      <input type="text" id="prompt" name="prompt" placeholder="Например: убери покраснение кожи" />
     </div>
 
     <button id="enhanceBtn" onclick="uploadPhoto()">Улучшить</button>
 
-    <!-- Анимация обработки -->
     <div id="loading" style="display: none;" class="loading-overlay">
       <div class="loading-spinner"></div>
       <p>Улучшение может занять до 3 минут…</p>
@@ -64,7 +63,7 @@
 
   <script>
     Telegram.WebApp.ready();
-  
+
     const tgUser = Telegram.WebApp.initDataUnsafe?.user;
     const chatId = tgUser?.id;
 
@@ -89,8 +88,7 @@
     async function uploadPhoto() {
       const input = document.getElementById("fileInput");
       const loading = document.getElementById("loading");
-      const prompt = document.getElementById("promptInput").value;
-      formData.append("prompt", prompt);
+      const prompt = document.getElementById("prompt").value;
 
       if (!input.files[0]) {
         alert("Пожалуйста, выберите фото");
@@ -101,6 +99,7 @@
 
       const formData = new FormData();
       formData.append("file", input.files[0]);
+      formData.append("prompt", prompt);
 
       try {
         const response = await fetch("/upload/", {
