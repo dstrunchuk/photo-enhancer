@@ -37,7 +37,7 @@ def get_face_brightness_live(image: Image.Image) -> float:
 def conditional_brightness(image: Image.Image) -> Image.Image:
     avg_brightness = get_face_brightness_live(image)
 
-    if avg_brightness > 150:
+    if avg_brightness > 145:
         brightness_factor = 1.00
     elif avg_brightness > 120:
         brightness_factor = 1.08
