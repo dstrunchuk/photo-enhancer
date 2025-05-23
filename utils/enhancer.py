@@ -38,11 +38,17 @@ def is_dark_photo(image: Image.Image) -> bool:
     avg_brightness = np.array(gray).mean()
     return avg_brightness < 50
 
-def apply_dark_photo_filter(image: Image.Image) -> Image.Image:
-    image = ImageEnhance.Brightness(image).enhance(1.05)
-    image = ImageEnhance.Contrast(image).enhance(1.02)
-    image = ImageEnhance.Color(image).enhance(1.02)
-    return image
+def apply_subject_lighting(image: Image.Image) -> Image.Image:
+    # Мягкое "осветление тела" — эмуляция студийного света
+    body_layer = image.filter(ImageFilter.GaussianBlur(radius=30))
+    body_layer = ImageEnhance.Brightness(body_layer).enhance(1.25)
+    result = Image.blend(image, body_layer, alpha=0.25)
+
+    # Уменьшение красного оттенка (часто бывает на ночных фото)
+    r, g, b = result.split()
+    r = r.point(lambda i: i * 0.95)
+    result = Image.merge("RGB", (r, g, b))
+    return result
 
 # Регулируем осветление по яркости лица
 def conditional_brightness(image: Image.Image) -> Image.Image:
@@ -111,8 +117,9 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
     os.remove(temp_filename)
 
     # Цветокоррекция и финал
+   # Фильтр "освещение тела", только если фото темное
     if is_dark_photo(image_idn):
-        image_idn = apply_dark_photo_filter(image_idn)
+        image_idn = apply_subject_lighting(image_idn)
     final_image = apply_final_polish(image_idn)
     final_bytes = io.BytesIO()
     final_image.save(final_bytes, format="JPEG", quality=99, subsampling=0)
