@@ -12,3 +12,4 @@ insightface
 onnxruntime
 matplotlib
 Pillow
+openai
