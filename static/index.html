@@ -48,6 +48,11 @@
 
     <img id="preview" alt="Превью" style="display: none;" />
 
+    <div class="form-block">
+      <label for="promptInput">Ваш запрос (например: «Убрать морщины, сделать кожу ярче»)</label>
+      <input type="text" id="promptInput" placeholder="Оставьте пустым для автоулучшения" />
+    </div>
+
     <button id="enhanceBtn" onclick="uploadPhoto()">Улучшить</button>
 
     <!-- Анимация обработки -->
@@ -84,6 +89,8 @@
     async function uploadPhoto() {
       const input = document.getElementById("fileInput");
       const loading = document.getElementById("loading");
+      const prompt = document.getElementById("promptInput").value;
+      formData.append("prompt", prompt);
 
       if (!input.files[0]) {
         alert("Пожалуйста, выберите фото");

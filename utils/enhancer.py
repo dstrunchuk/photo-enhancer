@@ -42,7 +42,7 @@ def conditional_brightness(image: Image.Image) -> Image.Image:
     elif avg_brightness > 120:
         brightness_factor = 1.08
     else:
-        brightness_factor = np.clip(1.4 - (avg_brightness - 80) * 0.00375, 1.2, 1.4)
+        brightness_factor = np.clip(1.4 - (avg_brightness - 80) * 0.00375, 1.1, 1.4)
 
     return ImageEnhance.Brightness(image).enhance(brightness_factor)
 
@@ -74,8 +74,8 @@ async def enhance_image(image_bytes: bytes) -> bytes:
                     "Keep skin texture, identity, and facial features unchanged. No artificial edits or smoothing."
                 ),
                 "model": "dev",
-                "guidance_scale": 0.7,
-                "prompt_strength": 0.11,
+                "guidance_scale": 0.6,
+                "prompt_strength": 0.10,
                 "num_inference_steps": 24,
                 "output_format": "png",
                 "output_quality": 90,

@@ -6,20 +6,22 @@ from fastapi.staticfiles import StaticFiles
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
+import openai
 import httpx
 import io
 import os
 import telegram
 import traceback
 
-
-# Telegram токен из Railway (environment variable)
+# Telegram и OpenAI токены
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 BOT = telegram.Bot(token=TELEGRAM_TOKEN)
+
+openai.api_key = OPENAI_API_KEY
 
 app = FastAPI()
 
-# Разрешить Telegram WebApp (можно сузить до нужного origin)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -32,23 +34,42 @@ class PhotoData(BaseModel):
     chat_id: int
     photo_url: str
 
+# Перевод с русского на английский (если нужно)
+async def translate_prompt(russian_text: str) -> str:
+    if not russian_text.strip():
+        return ""
+    try:
+        response = await openai.ChatCompletion.acreate(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a translation assistant. Translate from Russian to natural English, preserving meaning and nuance. Do not add anything."},
+                {"role": "user", "content": russian_text}
+            ]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print("Translation error:", e)
+        return ""
+
 # Эндпоинт загрузки фото
 @app.post("/upload/")
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(
+    file: UploadFile = File(...),
+    prompt: str = Form(default="")
+):
     try:
         contents = await file.read()
-        result = await enhance_image(contents)
+        translated_prompt = await translate_prompt(prompt)
+        result = await enhance_image(contents, translated_prompt)
         return StreamingResponse(io.BytesIO(result), media_type="image/jpeg")
     except Exception as e:
         print("ERROR DURING IMAGE PROCESSING:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-# Telegram webhook
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
-
     try:
         message = data.get("message", {})
         chat_id = message.get("chat", {}).get("id")
@@ -83,13 +104,12 @@ async def telegram_webhook(request: Request):
     except Exception as e:
         print("[WEBHOOK ERROR]", str(e))
         return JSONResponse(status_code=500, content={"error": str(e)})
-    
+
 @app.post("/send_photo_upload")
 async def send_photo_upload(file: UploadFile = File(...), chat_id: int = Form(...)):
     try:
         image_bytes = await file.read()
 
-        # оборачиваем синхронную отправку
         await run_in_threadpool(
             BOT.send_document,
             chat_id=chat_id,
@@ -103,5 +123,4 @@ async def send_photo_upload(file: UploadFile = File(...), chat_id: int = Form(..
         print("[SEND ERROR]", str(e))
         return JSONResponse(status_code=500, content={"error": "Ошибка Telegram"})
 
-# Все маршруты зарегистрированы выше
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
