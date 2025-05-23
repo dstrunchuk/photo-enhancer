@@ -86,7 +86,8 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
     try:
         prompt = (
             "Subtle and natural retouching. Lightly reduce under-eye bags and strong shadows. "
-            "Keep skin texture, identity, and facial features unchanged. No artificial edits or smoothing."
+            "Keep skin texture, identity, and facial features unchanged. Do not alter eyes, eyelashes, or lips. "
+            "No artificial edits, no smoothing, no additions."
         )
         if user_prompt:
             prompt = user_prompt
