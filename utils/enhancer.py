@@ -37,12 +37,12 @@ def get_face_brightness_live(image: Image.Image) -> float:
 def conditional_brightness(image: Image.Image) -> Image.Image:
     avg_brightness = get_face_brightness_live(image)
 
-    if avg_brightness > 160:
+    if avg_brightness > 150:
         brightness_factor = 1.00
     elif avg_brightness > 130:
-        brightness_factor = 1.10
+        brightness_factor = 1.08
     else:
-        brightness_factor = np.clip(1.5 - (avg_brightness - 80) * 0.00375, 1.2, 1.5)
+        brightness_factor = np.clip(1.4 - (avg_brightness - 80) * 0.00375, 1.2, 1.4)
 
     return ImageEnhance.Brightness(image).enhance(brightness_factor)
 
@@ -51,7 +51,7 @@ def apply_final_polish(image: Image.Image) -> Image.Image:
     image = conditional_brightness(image)
     image = ImageEnhance.Contrast(image).enhance(1.10)
     image = ImageEnhance.Color(image).enhance(1.10)
-    image = ImageEnhance.Sharpness(image).enhance(1.50)
+    image = ImageEnhance.Sharpness(image).enhance(1.40)
     return image
 
 # Основная функция
@@ -74,8 +74,8 @@ async def enhance_image(image_bytes: bytes) -> bytes:
                     "Keep skin texture, identity, and facial features unchanged. No artificial edits or smoothing."
                 ),
                 "model": "dev",
-                "guidance_scale": 0.5,
-                "prompt_strength": 0.07,
+                "guidance_scale": 0.9,
+                "prompt_strength": 0.14,
                 "num_inference_steps": 24,
                 "output_format": "png",
                 "output_quality": 90,
