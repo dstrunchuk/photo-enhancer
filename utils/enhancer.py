@@ -120,16 +120,6 @@ def conditional_brightness(image: Image.Image) -> Image.Image:
         brightness_factor = np.clip(1.4 - (avg_brightness - 80) * 0.00375, 1.1, 1.4)
     return ImageEnhance.Brightness(image).enhance(brightness_factor)
 
-def add_face_glow(image: Image.Image, face_data) -> Image.Image:
-    if not face_data:
-        return image
-    x1, y1, x2, y2 = map(int, face_data.bbox)
-    mask = Image.new("L", image.size, 0)
-    draw = ImageDraw.Draw(mask)
-    draw.ellipse([x1, y1, x2, y2], fill=255)
-    glow_mask = mask.filter(ImageFilter.GaussianBlur(radius=40))
-    bright = ImageEnhance.Brightness(image).enhance(1.18)
-    return Image.composite(bright, image, glow_mask)
 
 def analyze_skin_tone(image: Image.Image, face_data) -> str:
     if not face_data:
@@ -337,42 +327,29 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
                 "extra_lora_scale": 0.12
             }
         )
+
         response = requests.get(str(idnbeauty_result[0]))
         image_idn = Image.open(io.BytesIO(response.content)).convert("RGB")
+
+        img_np = np.array(image_idn)
+        faces = face_analyzer.get(img_np)
+        face = faces[0] if faces else None
+
+        # Анализ тона кожи
+        skin_tone = analyze_skin_tone(image_idn, face)
+
+        # Коррекция тона кожи
+        image_idn = adjust_by_skin_tone(image_idn, skin_tone)
+
+        # Цветокоррекция
+        final_image = apply_final_polish(image_idn)
+
+        # Сохранение
+        final_bytes = io.BytesIO()
+        final_image.save(final_bytes, format="JPEG", quality=99, subsampling=0)
+        final_bytes.seek(0)
+        return final_bytes.read()
+
     except Exception as e:
         os.remove(temp_filename)
-        raise Exception(f"Ошибка при обработке IDNBeauty: {e}")
-
-    os.remove(temp_filename)
-
-    # Анализ лица
-    img_np = np.array(image_idn)
-    faces = face_analyzer.get(img_np)
-    face = faces[0] if faces else None
-
-    # Классификация сцены и тона
-    scene_type = classify_scene(image_idn)
-    skin_tone = analyze_skin_tone(image_idn, face)
-
-    # Применение сценариев
-    image_idn = apply_scenario(image_idn, face, scene_type)
-    image_idn = apply_background_blur(image_idn, face)
-    image_idn = enhance_eyes_and_lips(image_idn, face)
-    image_idn = adjust_by_skin_tone(image_idn, skin_tone)
-    image_idn = add_face_glow(image_idn, face)
-
-    # Ночной фильтр освещения
-    if is_dark_photo(image_idn):
-        image_idn = apply_subject_lighting(image_idn)
-
-    # Финальная цветокоррекция и мягкость
-    final_image = apply_final_polish(image_idn)
-    soft_intensity = "strong" if scene_type == "night" else "normal"
-    final_image = apply_soft_filter(final_image, intensity=soft_intensity)
-
-    # Сохранение
-    final_bytes = io.BytesIO()
-    final_image = apply_premium_smooth(final_image)
-    final_image.save(final_bytes, format="JPEG", quality=99, subsampling=0)
-    final_bytes.seek(0)
-    return final_bytes.read()
+        raise Exception(f"Ошибка обработки IDNBeauty или постобработки: {e}")
