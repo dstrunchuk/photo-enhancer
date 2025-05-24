@@ -30,39 +30,16 @@ class PhotoData(BaseModel):
     chat_id: int
     photo_url: str
 
-# Проверка, написан ли текст на русском
-def is_likely_russian(text: str) -> bool:
-    import re
-    return bool(re.search(r'[а-яА-ЯёЁ]', text))
 
-# Перевод с русского на английский (если нужно)
-async def translate_prompt(prompt: str) -> str:
-    if not prompt.strip():
-        return ""
-    if not is_likely_russian(prompt):
-        return prompt.strip()
-    try:
-        response = await openai.ChatCompletion.acreate(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a translation assistant. Translate from Russian to natural English, preserving meaning and nuance. Do not add anything."},
-                {"role": "user", "content": prompt.strip()}
-            ]
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        print("[TRANSLATION ERROR]", e)
-        return ""
 
 # Эндпоинт загрузки фото
 @app.post("/upload/")
 async def upload_image(
-    file: UploadFile = File(...),
-    prompt: str = Form(default="")
+    file: UploadFile = File(...)
 ):
     try:
         contents = await file.read()
-        result = await enhance_image(contents, translated_prompt)
+        result = await enhance_image(contents)
         return StreamingResponse(io.BytesIO(result), media_type="image/jpeg")
     except Exception as e:
         print("ERROR DURING IMAGE PROCESSING:")
