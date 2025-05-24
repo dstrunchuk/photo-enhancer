@@ -112,13 +112,30 @@ def apply_subject_lighting(image: Image.Image) -> Image.Image:
 # Регулируем осветление по яркости лица
 def conditional_brightness(image: Image.Image) -> Image.Image:
     avg_brightness = get_face_brightness_live(image)
-    if avg_brightness > 145:
+    if avg_brightness > 130:
         brightness_factor = 1.00
     elif avg_brightness > 120:
         brightness_factor = 1.08
     else:
         brightness_factor = np.clip(1.4 - (avg_brightness - 80) * 0.00375, 1.1, 1.4)
     return ImageEnhance.Brightness(image).enhance(brightness_factor)
+
+def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
+    if not face_data:
+        return image
+
+    x1, y1, x2, y2 = map(int, face_data.bbox)
+    face_crop = image.crop((x1, y1, x2, y2))
+
+    # Тёплый персиковый оверлей
+    overlay = Image.new("RGB", face_crop.size, (255, 200, 160))
+    face_crop = Image.blend(face_crop, overlay, 0.06)
+
+    # Осветление
+    face_crop = ImageEnhance.Brightness(face_crop).enhance(1.10)
+
+    image.paste(face_crop, (x1, y1))
+    return image
 
 
 def analyze_skin_tone(image: Image.Image, face_data) -> str:
@@ -194,13 +211,16 @@ def apply_final_polish(image: Image.Image) -> Image.Image:
     image = ImageEnhance.Contrast(image).enhance(1.10)
     image = ImageEnhance.Color(image).enhance(1.10)
 
-    # Умеренная резкость только для дневных фото
     avg_brightness = np.array(image.convert("L")).mean()
-    sharpness = 1.45 if avg_brightness > 100 else 1.10
+    if avg_brightness > 130:
+        sharpness = 1.40
+    elif avg_brightness > 100:
+        sharpness = 1.25
+    else:
+        sharpness = 1.05
     image = ImageEnhance.Sharpness(image).enhance(sharpness)
 
-    # Общий тёплый живой оттенок + яркость
-    warm_overlay = Image.new("RGB", image.size, (255, 185, 140))  # тёплый персиковый
+    warm_overlay = Image.new("RGB", image.size, (255, 185, 140))
     image = Image.blend(image, warm_overlay, 0.04)
     image = ImageEnhance.Brightness(image).enhance(1.04)
 
@@ -318,17 +338,18 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
         os.remove(temp_filename)
         raise Exception("Лицо не обнаружено. Пожалуйста, загрузите чёткий портрет.")
 
-    # Запуск IDNBeauty
     try:
+        # Prompt для IDNBeauty
         prompt = (
             "Subtle and natural retouching. Lightly reduce under-eye bags and strong shadows. "
             "Keep skin texture, identity, and facial features unchanged. Do not alter eyes, eyelashes, or lips. "
-            "No artificial edits, no smoothing, no additions."
-            "Do not touch eyelashes or eyeliner. Do not sharpen or brighten eyes. "
+            "No artificial edits, no smoothing, no additions. "
+            "Do not touch eyelashes or eyeliner. Do not sharpen or brighten eyes."
         )
         if user_prompt:
             prompt = user_prompt
 
+        # Запуск IDNBeauty
         idnbeauty_result = replicate.run(
             "torrikabe-ai/idnbeauty:5f994656b3b88df2e21a3cf0a81371d66bd6ff45171f3e5618bb314bdc8b64b1",
             input={
@@ -346,6 +367,7 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
             }
         )
 
+        # Обработка результата
         response = requests.get(str(idnbeauty_result[0]))
         image_idn = Image.open(io.BytesIO(response.content)).convert("RGB")
 
@@ -353,14 +375,17 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
         faces = face_analyzer.get(img_np)
         face = faces[0] if faces else None
 
-        # Анализ тона кожи
+        # Анализ и корректировка
         skin_tone = analyze_skin_tone(image_idn, face)
-
-        # Коррекция тона кожи
         image_idn = adjust_by_skin_tone(image_idn, skin_tone)
+        scene_type = classify_scene(image_idn)
 
         # Цветокоррекция
         final_image = apply_final_polish(image_idn)
+
+        # Осветление лица при ночных сценах
+        if scene_type == "night":
+            final_image = enhance_face_lighting(final_image, face)
 
         # Сохранение
         final_bytes = io.BytesIO()
