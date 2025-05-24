@@ -1,19 +1,34 @@
+# Импорты
 import replicate
 import requests
+import zipfile
 import os
-from PIL import Image, ImageOps, ImageEnhance, ImageFilter
+from PIL import Image, ImageOps, ImageEnhance, ImageFilter, ImageDraw
 import io
 import numpy as np
 import uuid
 from insightface.app import FaceAnalysis
 import onnxruntime
-from PIL import ImageDraw
 
-# Инициализация клиента Replicate
-replicate_client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
+# 1. Функция для загрузки модели
+def ensure_insightface_model():
+    model_dir = "models/buffalo_l"
+    if not os.path.exists(model_dir):
+        print("Скачиваю модель buffalo_l...")
+        os.makedirs("models", exist_ok=True)
+        url = "https://huggingface.co/deepinsight/insightface/resolve/main/models/buffalo_l.zip"
+        response = requests.get(url)
+        zip_path = "models/buffalo_l.zip"
+        with open(zip_path, "wb") as f:
+            f.write(response.content)
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall("models/")
+        os.remove(zip_path)
+        print("Модель buffalo_l загружена.")
 
-# Инициализация распознавания лица
-face_analyzer = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
+# 2. Инициализация модели лица
+ensure_insightface_model()
+face_analyzer = FaceAnalysis(name="buffalo_l", root="models", providers=["CPUExecutionProvider"])
 face_analyzer.prepare(ctx_id=0)
 
 def enhance_eyes_and_lips(image: Image.Image, face_data) -> Image.Image:
@@ -50,6 +65,8 @@ def has_face(image_path: str) -> bool:
     img = Image.open(image_path).convert("RGB")
     img_np = np.array(img)
     faces = face_analyzer.get(img_np)
+    faces = face_analyzer.get(np.array(image))
+    print(f"Обнаружено лиц: {len(faces)}")
     return len(faces) > 0
 
 def apply_premium_smooth(image: Image.Image) -> Image.Image:
@@ -205,20 +222,20 @@ def apply_background_blur(image: Image.Image, face_data) -> Image.Image:
 
     center_x = (x1 + x2) // 2
     center_y = (y1 + y2) // 2
-    ellipse_width = int((x2 - x1) * 1.9)
-    ellipse_height = int((y2 - y1) * 4.5)
+    ellipse_width = int((x2 - x1) * 2.0)
+    ellipse_height = int((y2 - y1) * 3.5)
 
-    mask = Image.new("L", image.size, 0)
+    mask = Image.new("L", (width, height), 0)
     draw = ImageDraw.Draw(mask)
     draw.ellipse([
         max(center_x - ellipse_width // 2, 0),
-        max(center_y - ellipse_height // 3, 0),
+        max(center_y - ellipse_height // 2, 0),
         min(center_x + ellipse_width // 2, width),
-        min(center_y + ellipse_height * 2 // 3, height)
+        min(center_y + ellipse_height // 2, height)
     ], fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=25))
 
-    blurred = image.filter(ImageFilter.GaussianBlur(radius=2.2))
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=30))
+    blurred = image.filter(ImageFilter.GaussianBlur(radius=1.8))
     return Image.composite(image, blurred, ImageOps.invert(mask))
 # Применить эффекты по сценарию и маске лица
 def apply_scenario(image: Image.Image, face_data, scene_type: str) -> Image.Image:
