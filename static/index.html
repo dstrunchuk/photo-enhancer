@@ -48,11 +48,6 @@
 
     <img id="preview" alt="Превью" style="display: none;" />
 
-    <div class="form-block">
-      <label for="prompt">Ваш запрос</label>
-      <input type="text" id="prompt" name="prompt" placeholder="Например: убрать морщины, сделать кожу ярче" class="prompt-input" />
-    </div>
-
     <button id="enhanceBtn" onclick="uploadPhoto()">Улучшить</button>
 
     <div id="loading" style="display: none;" class="loading-overlay">
@@ -88,7 +83,6 @@
     async function uploadPhoto() {
       const input = document.getElementById("fileInput");
       const loading = document.getElementById("loading");
-      const prompt = document.getElementById("prompt").value;
 
       if (!input.files[0]) {
         alert("Пожалуйста, выберите фото");
@@ -99,7 +93,6 @@
 
       const formData = new FormData();
       formData.append("file", input.files[0]);
-      formData.append("prompt", prompt);
 
       try {
         const response = await fetch("/upload/", {

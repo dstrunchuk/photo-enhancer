@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
-import openai
 import httpx
 import io
 import os
@@ -16,8 +15,6 @@ from utils.enhancer import enhance_image
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 BOT = telegram.Bot(token=TELEGRAM_TOKEN)
-
-openai.api_key = OPENAI_API_KEY
 
 app = FastAPI()
 
@@ -65,7 +62,6 @@ async def upload_image(
 ):
     try:
         contents = await file.read()
-        translated_prompt = await translate_prompt(prompt)
         result = await enhance_image(contents, translated_prompt)
         return StreamingResponse(io.BytesIO(result), media_type="image/jpeg")
     except Exception as e:
