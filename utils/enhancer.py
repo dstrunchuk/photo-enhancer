@@ -198,7 +198,7 @@ def apply_final_polish(image: Image.Image) -> Image.Image:
     image = Image.blend(image, overlay, 0.03)
 
 # Чуть больше яркости
-image = ImageEnhance.Brightness(image).enhance(1.03)
+    image = ImageEnhance.Brightness(image).enhance(1.03)
     return image
 
 # Классификация сцены по фото
