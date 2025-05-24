@@ -15,17 +15,23 @@ def ensure_insightface_model():
     model_dir = "models/buffalo_l"
     if not os.path.exists(model_dir):
         print("Скачиваю модель buffalo_l...")
+
         os.makedirs("models", exist_ok=True)
         url = "https://huggingface.co/deepinsight/insightface/resolve/main/models/buffalo_l.zip"
-        response = requests.get(url)
+        headers = {"User-Agent": "Mozilla/5.0"}  # важно
         zip_path = "models/buffalo_l.zip"
+
+        response = requests.get(url, headers=headers, allow_redirects=True)
+        if not response.ok or b"PK" not in response.content[:4]:
+            raise Exception("Ошибка при скачивании: файл не является zip-архивом.")
+
         with open(zip_path, "wb") as f:
             f.write(response.content)
+
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall("models/")
         os.remove(zip_path)
         print("Модель buffalo_l загружена.")
-
 # 2. Инициализация модели лица
 ensure_insightface_model()
 face_analyzer = FaceAnalysis(name="buffalo_l", root="models", providers=["CPUExecutionProvider"])
