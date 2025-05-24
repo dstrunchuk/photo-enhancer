@@ -188,17 +188,22 @@ def adjust_by_skin_tone(image: Image.Image, tone: str) -> Image.Image:
     return img
 
 
-
 # Цветокоррекция с адаптивной яркостью
 def apply_final_polish(image: Image.Image) -> Image.Image:
-    image = ImageEnhance.Brightness(image).enhance(1.03)
-    image = ImageEnhance.Contrast(image).enhance(1.08)
-    # Добавим лёгкое тёплое сияние поверх
-    overlay = Image.new("RGB", image.size, (75, 55, 35))
-    image = Image.blend(image, overlay, 0.03)
+    image = conditional_brightness(image)
+    image = ImageEnhance.Contrast(image).enhance(1.10)
+    image = ImageEnhance.Color(image).enhance(1.10)
 
-# Чуть больше яркости
-    image = ImageEnhance.Brightness(image).enhance(1.03)
+    # Умеренная резкость только для дневных фото
+    avg_brightness = np.array(image.convert("L")).mean()
+    sharpness = 1.45 if avg_brightness > 100 else 1.10
+    image = ImageEnhance.Sharpness(image).enhance(sharpness)
+
+    # Общий тёплый живой оттенок + яркость
+    warm_overlay = Image.new("RGB", image.size, (255, 185, 140))  # тёплый персиковый
+    image = Image.blend(image, warm_overlay, 0.04)
+    image = ImageEnhance.Brightness(image).enhance(1.04)
+
     return image
 
 # Классификация сцены по фото
@@ -319,6 +324,7 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
             "Subtle and natural retouching. Lightly reduce under-eye bags and strong shadows. "
             "Keep skin texture, identity, and facial features unchanged. Do not alter eyes, eyelashes, or lips. "
             "No artificial edits, no smoothing, no additions."
+            "Do not touch eyelashes or eyeliner. Do not sharpen or brighten eyes. "
         )
         if user_prompt:
             prompt = user_prompt
