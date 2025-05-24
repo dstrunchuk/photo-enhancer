@@ -19,36 +19,29 @@ face_analyzer.prepare(ctx_id=0)
 def enhance_eyes_and_lips(image: Image.Image, face_data) -> Image.Image:
     if not face_data or not hasattr(face_data, "landmark_2d_106"):
         return image
-
     img = image.copy()
-    draw = ImageDraw.Draw(img)
     landmarks = face_data.landmark_2d_106
 
-    def get_bbox(points, padding=4):
-        x_coords = [int(p[0]) for p in points]
-        y_coords = [int(p[1]) for p in points]
-        x1, x2 = max(min(x_coords) - padding, 0), min(max(x_coords) + padding, img.width)
-        y1, y2 = max(min(y_coords) - padding, 0), min(max(y_coords) + padding, img.height)
+    def get_mask_bbox(points, padding=4):
+        x = [int(p[0]) for p in points]
+        y = [int(p[1]) for p in points]
+        x1, x2 = max(min(x) - padding, 0), min(max(x) + padding, img.width)
+        y1, y2 = max(min(y) - padding, 0), min(max(y) + padding, img.height)
         return (x1, y1, x2, y2)
 
-    # Глаза (точки: ~33–41 для левого, ~42–50 для правого)
-    left_eye_box = get_bbox(landmarks[33:42])
-    right_eye_box = get_bbox(landmarks[42:51])
-    # Губы (точки: ~70–88)
-    lips_box = get_bbox(landmarks[70:89])
-
-    # Обработка глаз — осветление и резкость
-    for box in [left_eye_box, right_eye_box]:
-        eye = img.crop(box)
-        eye = ImageEnhance.Brightness(eye).enhance(1.2)
-        eye = ImageEnhance.Sharpness(eye).enhance(2.0)
-        img.paste(eye, box)
-
-    # Губы — усиление цвета
-    lips = img.crop(lips_box)
-    lips = ImageEnhance.Color(lips).enhance(1.3)
-    img.paste(lips, lips_box)
-
+    for region_points, enhancer in [
+        (landmarks[33:42], lambda i: ImageEnhance.Brightness(ImageEnhance.Sharpness(i).enhance(2)).enhance(1.2)),
+        (landmarks[42:51], lambda i: ImageEnhance.Brightness(ImageEnhance.Sharpness(i).enhance(2)).enhance(1.2)),
+        (landmarks[70:89], lambda i: ImageEnhance.Color(i).enhance(1.35))
+    ]:
+        bbox = get_mask_bbox(region_points)
+        sub = img.crop(bbox)
+        sub_enhanced = enhancer(sub)
+        mask = Image.new("L", sub.size, 0)
+        draw = ImageDraw.Draw(mask)
+        draw.ellipse((0, 0, sub.size[0], sub.size[1]), fill=255)
+        mask = mask.filter(ImageFilter.GaussianBlur(radius=4))
+        img.paste(sub_enhanced, bbox[:2], mask)
     return img
 
 # Проверка наличия лица
@@ -57,6 +50,13 @@ def has_face(image_path: str) -> bool:
     img_np = np.array(img)
     faces = face_analyzer.get(img_np)
     return len(faces) > 0
+
+def apply_premium_smooth(image: Image.Image) -> Image.Image:
+    base = image.copy()
+    blur = base.filter(ImageFilter.GaussianBlur(radius=1.5))
+    glow = ImageEnhance.Brightness(blur).enhance(1.03)
+    mix = Image.blend(base, glow, 0.20)
+    return mix
 
 # Проверка яркости именно на текущем изображении
 def get_face_brightness_live(image: Image.Image) -> float:
@@ -100,24 +100,13 @@ def conditional_brightness(image: Image.Image) -> Image.Image:
 def add_face_glow(image: Image.Image, face_data) -> Image.Image:
     if not face_data:
         return image
-
     x1, y1, x2, y2 = map(int, face_data.bbox)
-
-    # Создаём маску лица
     mask = Image.new("L", image.size, 0)
     draw = ImageDraw.Draw(mask)
-    draw.rectangle([x1, y1, x2, y2], fill=255)
-
-    # Расширяем маску для glow
-    glow_mask = mask.filter(ImageFilter.GaussianBlur(radius=20))
-
-    # Осветлённый слой
-    bright = ImageEnhance.Brightness(image).enhance(1.25)
-
-    # Наложение glow по маске
-    img_glow = Image.composite(bright, image, glow_mask)
-
-    return img_glow
+    draw.ellipse([x1, y1, x2, y2], fill=255)
+    glow_mask = mask.filter(ImageFilter.GaussianBlur(radius=40))
+    bright = ImageEnhance.Brightness(image).enhance(1.18)
+    return Image.composite(bright, image, glow_mask)
 
 def analyze_skin_tone(image: Image.Image, face_data) -> str:
     if not face_data:
@@ -163,20 +152,20 @@ def apply_soft_filter(image: Image.Image) -> Image.Image:
 def adjust_by_skin_tone(image: Image.Image, tone: str) -> Image.Image:
     img = image.copy()
     if tone == "pale":
-        img = ImageEnhance.Color(img).enhance(1.25)
-        warm_overlay = Image.new("RGB", img.size, (40, 25, 15))
-        img = Image.blend(img, warm_overlay, 0.08)
+        img = ImageEnhance.Color(img).enhance(1.15)
+        overlay = Image.new("RGB", img.size, (35, 25, 20))
+        img = Image.blend(img, overlay, 0.06)
     elif tone == "red":
         r, g, b = img.split()
-        r = r.point(lambda i: i * 0.95)
+        r = r.point(lambda i: i * 0.93)
         img = Image.merge("RGB", (r, g, b))
     elif tone == "yellow":
         r, g, b = img.split()
-        g = g.point(lambda i: i * 0.92)
+        g = g.point(lambda i: i * 0.90)
         img = Image.merge("RGB", (r, g, b))
     elif tone == "cold":
-        warm_overlay = Image.new("RGB", img.size, (35, 30, 15))
-        img = Image.blend(img, warm_overlay, 0.10)
+        overlay = Image.new("RGB", img.size, (50, 30, 20))
+        img = Image.blend(img, overlay, 0.10)
     return img
 
 
@@ -362,6 +351,7 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
 
     # Сохранение
     final_bytes = io.BytesIO()
+    final_image = apply_premium_smooth(final_image)
     final_image.save(final_bytes, format="JPEG", quality=99, subsampling=0)
     final_bytes.seek(0)
     return final_bytes.read()
