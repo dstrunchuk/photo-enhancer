@@ -124,29 +124,29 @@ def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
     if not face_data:
         return image
 
-    img = image.copy()
     x1, y1, x2, y2 = map(int, face_data.bbox)
-    face_crop = img.crop((x1, y1, x2, y2))
+    face_crop = image.crop((x1, y1, x2, y2))
 
-    # Тёплый персиковый оверлей
-    overlay = Image.new("RGB", face_crop.size, (255, 200, 160))
-    face_crop = Image.blend(face_crop, overlay, 0.06)
+    # Тёплый soft-light overlay
+    glow = face_crop.filter(ImageFilter.GaussianBlur(radius=8))
+    glow = ImageEnhance.Brightness(glow).enhance(1.2)
+    glow = Image.blend(face_crop, glow, 0.35)
 
-    # Осветление
-    face_crop = ImageEnhance.Brightness(face_crop).enhance(1.10)
+    # Персиковый фильтр
+    warm_overlay = Image.new("RGB", face_crop.size, (255, 190, 155))
+    warm_face = Image.blend(glow, warm_overlay, 0.06)
 
-    # Создаём маску с мягкой эллиптической заливкой
+    # Маска — эллипс с мягкими краями
     mask = Image.new("L", face_crop.size, 0)
     draw = ImageDraw.Draw(mask)
     draw.ellipse((0, 0, face_crop.size[0], face_crop.size[1]), fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(10))
+    mask = mask.filter(ImageFilter.GaussianBlur(12))
 
-    # Вставка с маской
-    region = img.crop((x1, y1, x2, y2))
-    blended = Image.composite(face_crop, region, mask)
-    img.paste(blended, (x1, y1))
+    region = image.crop((x1, y1, x2, y2))
+    blended = Image.composite(warm_face, region, mask)
+    image.paste(blended, (x1, y1))
 
-    return img
+    return image
 
 
 def analyze_skin_tone(image: Image.Image, face_data) -> str:
@@ -352,10 +352,9 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
     try:
         # Prompt для IDNBeauty
         prompt = (
-            "Subtle and natural retouching. Lightly reduce under-eye bags and strong shadows. "
-            "Keep skin texture, identity, and facial features unchanged. Do not alter eyes, eyelashes, or lips. "
-            "No artificial edits, no smoothing, no additions. "
-            "Do not touch eyelashes or eyeliner. Do not sharpen or brighten eyes."
+            "Soft natural face enhancement. Do not touch eyes, pupils, eyelashes, eyeliner, or makeup. "
+            "Keep gaze direction and natural eye look. Preserve original eyebrows and lashes. "
+            "Do not sharpen. Do not smooth. Only slightly brighten and clean the skin."
         )
         if user_prompt:
             prompt = user_prompt
