@@ -124,8 +124,9 @@ def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
     if not face_data:
         return image
 
+    img = image.copy()
     x1, y1, x2, y2 = map(int, face_data.bbox)
-    face_crop = image.crop((x1, y1, x2, y2))
+    face_crop = img.crop((x1, y1, x2, y2))
 
     # Тёплый персиковый оверлей
     overlay = Image.new("RGB", face_crop.size, (255, 200, 160))
@@ -134,8 +135,18 @@ def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
     # Осветление
     face_crop = ImageEnhance.Brightness(face_crop).enhance(1.10)
 
-    image.paste(face_crop, (x1, y1))
-    return image
+    # Создаём маску с мягкой эллиптической заливкой
+    mask = Image.new("L", face_crop.size, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.ellipse((0, 0, face_crop.size[0], face_crop.size[1]), fill=255)
+    mask = mask.filter(ImageFilter.GaussianBlur(10))
+
+    # Вставка с маской
+    region = img.crop((x1, y1, x2, y2))
+    blended = Image.composite(face_crop, region, mask)
+    img.paste(blended, (x1, y1))
+
+    return img
 
 
 def analyze_skin_tone(image: Image.Image, face_data) -> str:
