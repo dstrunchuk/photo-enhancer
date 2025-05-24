@@ -71,7 +71,6 @@ def has_face(image_path: str) -> bool:
     img = Image.open(image_path).convert("RGB")
     img_np = np.array(img)
     faces = face_analyzer.get(img_np)
-    faces = face_analyzer.get(np.array(image))
     print(f"Обнаружено лиц: {len(faces)}")
     return len(faces) > 0
 
