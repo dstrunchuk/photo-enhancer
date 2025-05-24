@@ -176,8 +176,8 @@ def adjust_by_skin_tone(image: Image.Image, tone: str) -> Image.Image:
     img = image.copy()
     if tone == "pale":
         img = ImageEnhance.Color(img).enhance(1.20)
-        overlay = Image.new("RGB", img.size, (50, 30, 15))
-        img = Image.blend(img, overlay, 0.08)
+        overlay = Image.new("RGB", img.size, (255, 210, 160))
+        img = Image.blend(img, overlay, 0.07)
     elif tone == "red":
         r, g, b = img.split()
         r = r.point(lambda i: i * 0.93)
@@ -195,10 +195,8 @@ def adjust_by_skin_tone(image: Image.Image, tone: str) -> Image.Image:
 
 # Цветокоррекция с адаптивной яркостью
 def apply_final_polish(image: Image.Image) -> Image.Image:
-    image = conditional_brightness(image)
-    image = ImageEnhance.Contrast(image).enhance(1.10)
-    image = ImageEnhance.Color(image).enhance(1.10)
-    image = ImageEnhance.Sharpness(image).enhance(1.55)
+    image = ImageEnhance.Brightness(image).enhance(1.03)
+    image = ImageEnhance.Contrast(image).enhance(1.08)
     return image
 
 # Классификация сцены по фото
