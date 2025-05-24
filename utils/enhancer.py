@@ -19,34 +19,32 @@ face_analyzer.prepare(ctx_id=0)
 def enhance_eyes_and_lips(image: Image.Image, face_data) -> Image.Image:
     if not face_data or not hasattr(face_data, "landmark_2d_106"):
         return image
+
     img = image.copy()
     landmarks = face_data.landmark_2d_106
 
-    def get_bbox(points, padding=4):
-        x = [int(p[0]) for p in points]
-        y = [int(p[1]) for p in points]
-        return (
-            max(min(x) - padding, 0),
-            max(min(y) - padding, 0),
-            min(max(x) + padding, img.width),
-            min(max(y) + padding, img.height),
-        )
+    def apply_region(points, enhance_fn):
+        xs = [int(p[0]) for p in points]
+        ys = [int(p[1]) for p in points]
+        x1, x2 = max(min(xs), 0), min(max(xs), img.width)
+        y1, y2 = max(min(ys), 0), min(max(ys), img.height)
+        box = (x1, y1, x2, y2)
 
-    regions = [
-        (landmarks[33:42], lambda i: ImageEnhance.Sharpness(ImageEnhance.Brightness(i).enhance(1.1)).enhance(2.0)),
-        (landmarks[42:51], lambda i: ImageEnhance.Sharpness(ImageEnhance.Brightness(i).enhance(1.1)).enhance(2.0)),
-        (landmarks[70:89], lambda i: ImageEnhance.Color(i).enhance(1.25)),
-    ]
-
-    for points, enhance_fn in regions:
-        bbox = get_bbox(points)
-        region = img.crop(bbox)
+        region = img.crop(box)
         enhanced = enhance_fn(region)
+
         mask = Image.new("L", region.size, 0)
         draw = ImageDraw.Draw(mask)
         draw.ellipse((0, 0, region.size[0], region.size[1]), fill=255)
-        mask = mask.filter(ImageFilter.GaussianBlur(radius=3))
-        img.paste(enhanced, bbox[:2], mask)
+        mask = mask.filter(ImageFilter.GaussianBlur(radius=5))
+
+        blended = img.crop(box).copy()
+        blended.paste(enhanced, (0, 0), mask)
+        img.paste(blended, box)
+
+    apply_region(landmarks[33:42], lambda r: ImageEnhance.Sharpness(ImageEnhance.Brightness(r).enhance(1.1)).enhance(2.0))
+    apply_region(landmarks[42:51], lambda r: ImageEnhance.Sharpness(ImageEnhance.Brightness(r).enhance(1.1)).enhance(2.0))
+    apply_region(landmarks[70:89], lambda r: ImageEnhance.Color(r).enhance(1.25))
 
     return img
 
@@ -208,28 +206,23 @@ def apply_background_blur(image: Image.Image, face_data) -> Image.Image:
     width, height = image.size
     x1, y1, x2, y2 = map(int, face_data.bbox)
 
-    # Расширяем зону вниз до тела
     center_x = (x1 + x2) // 2
-    body_width = int((x2 - x1) * 1.4)
-    body_height = int((y2 - y1) * 3.5)
+    center_y = (y1 + y2) // 2
+    ellipse_width = int((x2 - x1) * 1.8)
+    ellipse_height = int((y2 - y1) * 4.2)
 
-    body_x1 = max(center_x - body_width // 2, 0)
-    body_x2 = min(center_x + body_width // 2, width)
-    body_y1 = max(y1 - int(0.2 * (y2 - y1)), 0)
-    body_y2 = min(body_y1 + body_height, height)
-
-    # Эллиптическая маска тела
-    mask = Image.new("L", (width, height), 0)
+    mask = Image.new("L", image.size, 0)
     draw = ImageDraw.Draw(mask)
-    draw.ellipse([body_x1, body_y1, body_x2, body_y2], fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=15))
+    draw.ellipse([
+        max(center_x - ellipse_width // 2, 0),
+        max(center_y - ellipse_height // 3, 0),
+        min(center_x + ellipse_width // 2, width),
+        min(center_y + ellipse_height * 2 // 3, height)
+    ], fill=255)
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=20))
 
-    # Лёгкое размытие фона
-    blurred = image.filter(ImageFilter.GaussianBlur(radius=2.2))
-
-    # Сохраняем тело, блюрим остальное
+    blurred = image.filter(ImageFilter.GaussianBlur(radius=2.0))
     return Image.composite(image, blurred, ImageOps.invert(mask))
-
 # Применить эффекты по сценарию и маске лица
 def apply_scenario(image: Image.Image, face_data, scene_type: str) -> Image.Image:
     img = image.copy()
