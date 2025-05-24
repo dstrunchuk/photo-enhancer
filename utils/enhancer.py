@@ -165,7 +165,7 @@ def apply_soft_filter(image: Image.Image) -> Image.Image:
 def adjust_by_skin_tone(image: Image.Image, tone: str) -> Image.Image:
     img = image.copy()
     if tone == "pale":
-        img = ImageEnhance.Color(img).enhance(1.20)
+        img = ImageEnhance.Color(img).enhance(0.99)
         overlay = Image.new("RGB", img.size, (255, 210, 160))
         img = Image.blend(img, overlay, 0.07)
     elif tone == "red":
@@ -177,8 +177,8 @@ def adjust_by_skin_tone(image: Image.Image, tone: str) -> Image.Image:
         g = g.point(lambda i: i * 0.90)
         img = Image.merge("RGB", (r, g, b))
     elif tone == "cold":
-        overlay = Image.new("RGB", img.size, (55, 35, 20))
-        img = Image.blend(img, overlay, 0.12)
+        overlay = Image.new("RGB", img.size, (65, 45, 25))
+        img = Image.blend(img, overlay, 0.05)
     return img
 
 
