@@ -164,21 +164,27 @@ def apply_soft_filter(image: Image.Image) -> Image.Image:
     
 def adjust_by_skin_tone(image: Image.Image, tone: str) -> Image.Image:
     img = image.copy()
+
     if tone == "pale":
-        img = ImageEnhance.Color(img).enhance(0.99)
-        overlay = Image.new("RGB", img.size, (255, 210, 160))
-        img = Image.blend(img, overlay, 0.07)
+        img = ImageEnhance.Color(img).enhance(1.15)
+        overlay = Image.new("RGB", img.size, (70, 50, 30))  # мягкий тёплый тон
+        img = Image.blend(img, overlay, 0.06)
+
     elif tone == "red":
         r, g, b = img.split()
-        r = r.point(lambda i: i * 0.93)
+        r = r.point(lambda i: i * 0.94)
         img = Image.merge("RGB", (r, g, b))
+
     elif tone == "yellow":
         r, g, b = img.split()
-        g = g.point(lambda i: i * 0.90)
+        g = g.point(lambda i: i * 0.92)
         img = Image.merge("RGB", (r, g, b))
+
     elif tone == "cold":
-        overlay = Image.new("RGB", img.size, (65, 45, 25))
+        # НЕ ФИОЛЕТОВЫЙ, а тёплый — убираем холодный эффект
+        overlay = Image.new("RGB", img.size, (80, 60, 40))  # светло-коричневый
         img = Image.blend(img, overlay, 0.05)
+
     return img
 
 
@@ -187,6 +193,12 @@ def adjust_by_skin_tone(image: Image.Image, tone: str) -> Image.Image:
 def apply_final_polish(image: Image.Image) -> Image.Image:
     image = ImageEnhance.Brightness(image).enhance(1.03)
     image = ImageEnhance.Contrast(image).enhance(1.08)
+    # Добавим лёгкое тёплое сияние поверх
+    overlay = Image.new("RGB", image.size, (75, 55, 35))
+    image = Image.blend(image, overlay, 0.03)
+
+# Чуть больше яркости
+image = ImageEnhance.Brightness(image).enhance(1.03)
     return image
 
 # Классификация сцены по фото
