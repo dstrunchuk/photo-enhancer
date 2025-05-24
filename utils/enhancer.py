@@ -23,7 +23,7 @@ def enhance_eyes_and_lips(image: Image.Image, face_data) -> Image.Image:
     img = image.copy()
     landmarks = face_data.landmark_2d_106
 
-    def apply_region(points, enhance_fn):
+    def apply_soft_overlay(points, enhance_fn):
         xs = [int(p[0]) for p in points]
         ys = [int(p[1]) for p in points]
         x1, x2 = max(min(xs), 0), min(max(xs), img.width)
@@ -36,16 +36,13 @@ def enhance_eyes_and_lips(image: Image.Image, face_data) -> Image.Image:
         mask = Image.new("L", region.size, 0)
         draw = ImageDraw.Draw(mask)
         draw.ellipse((0, 0, region.size[0], region.size[1]), fill=255)
-        mask = mask.filter(ImageFilter.GaussianBlur(radius=5))
+        mask = mask.filter(ImageFilter.GaussianBlur(radius=4))
 
-        blended = img.crop(box).copy()
-        blended.paste(enhanced, (0, 0), mask)
+        base = img.crop(box)
+        blended = Image.composite(enhanced, base, mask)
         img.paste(blended, box)
 
-    apply_region(landmarks[33:42], lambda r: ImageEnhance.Sharpness(ImageEnhance.Brightness(r).enhance(1.1)).enhance(2.0))
-    apply_region(landmarks[42:51], lambda r: ImageEnhance.Sharpness(ImageEnhance.Brightness(r).enhance(1.1)).enhance(2.0))
-    apply_region(landmarks[70:89], lambda r: ImageEnhance.Color(r).enhance(1.25))
-
+    apply_soft_overlay(landmarks[70:89], lambda r: ImageEnhance.Color(r).enhance(1.25))
     return img
 
 # Проверка наличия лица
@@ -208,8 +205,8 @@ def apply_background_blur(image: Image.Image, face_data) -> Image.Image:
 
     center_x = (x1 + x2) // 2
     center_y = (y1 + y2) // 2
-    ellipse_width = int((x2 - x1) * 1.8)
-    ellipse_height = int((y2 - y1) * 4.2)
+    ellipse_width = int((x2 - x1) * 1.9)
+    ellipse_height = int((y2 - y1) * 4.5)
 
     mask = Image.new("L", image.size, 0)
     draw = ImageDraw.Draw(mask)
@@ -219,9 +216,9 @@ def apply_background_blur(image: Image.Image, face_data) -> Image.Image:
         min(center_x + ellipse_width // 2, width),
         min(center_y + ellipse_height * 2 // 3, height)
     ], fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=20))
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=25))
 
-    blurred = image.filter(ImageFilter.GaussianBlur(radius=2.0))
+    blurred = image.filter(ImageFilter.GaussianBlur(radius=2.2))
     return Image.composite(image, blurred, ImageOps.invert(mask))
 # Применить эффекты по сценарию и маске лица
 def apply_scenario(image: Image.Image, face_data, scene_type: str) -> Image.Image:
