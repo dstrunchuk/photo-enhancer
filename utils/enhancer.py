@@ -98,16 +98,16 @@ def is_dark_photo(image: Image.Image) -> bool:
     return avg_brightness < 50
 
 def apply_subject_lighting(image: Image.Image) -> Image.Image:
-    # Мягкое "осветление тела" — эмуляция студийного света
-    body_layer = image.filter(ImageFilter.GaussianBlur(radius=30))
-    body_layer = ImageEnhance.Brightness(body_layer).enhance(1.25)
-    result = Image.blend(image, body_layer, alpha=0.25)
+    # Увеличиваем яркость и тепло по всей коже, без блюра
+    enhancer = ImageEnhance.Brightness(image)
+    image = enhancer.enhance(1.08)
 
-    # Уменьшение красного оттенка (часто бывает на ночных фото)
-    r, g, b = result.split()
-    r = r.point(lambda i: i * 0.95)
-    result = Image.merge("RGB", (r, g, b))
-    return result
+    # Лёгкий молочный оттенок (без фиолетового и без ореола)
+    warm_overlay = Image.new("RGB", image.size, (255, 230, 200))
+    image = Image.blend(image, warm_overlay, 0.03)
+
+    # Без ослабления красного канала, чтобы не было искажений
+    return image
 
 # Регулируем осветление по яркости лица
 def conditional_brightness(image: Image.Image) -> Image.Image:
@@ -166,18 +166,27 @@ def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
 
     img = image.copy()
     x1, y1, x2, y2 = map(int, face_data.bbox)
+    width, height = x2 - x1, y2 - y1
 
-    face_crop = img.crop((x1, y1, x2, y2))
+    # Создаём тёплый осветляющий слой
+    face_region = img.crop((x1, y1, x2, y2))
+    glow = ImageEnhance.Brightness(face_region).enhance(1.12)
 
-    # Мягкое осветление
-    bright_face = ImageEnhance.Brightness(face_crop).enhance(1.12)
+    # Тёплый фильтр
+    overlay = Image.new("RGB", (width, height), (255, 225, 195))  # мягкий молочно-тёплый
+    glow = Image.blend(glow, overlay, 0.08)
 
-    # Тёплый оттенок — без персиково-розового, ближе к молочному
-    warm_overlay = Image.new("RGB", bright_face.size, (255, 230, 200))  # молочный тон
-    enhanced = Image.blend(bright_face, warm_overlay, 0.06)
+    # Создаём мягкую овальную маску
+    mask = Image.new("L", (width, height), 0)
+    draw = ImageDraw.Draw(mask)
+    draw.ellipse((0, 0, width, height), fill=255)
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=15))
 
-    # Без масок — просто вставляем обратно
-    img.paste(enhanced, (x1, y1))
+    # Вставляем обработанный фрагмент через маску
+    base_region = img.crop((x1, y1, x2, y2))
+    blended = Image.composite(glow, base_region, mask)
+    img.paste(blended, (x1, y1))
+
     return img
 
 
