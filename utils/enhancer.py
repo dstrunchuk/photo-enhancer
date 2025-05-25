@@ -168,12 +168,13 @@ def conditional_brightness(image: Image.Image) -> Image.Image:
     return ImageEnhance.Brightness(image).enhance(brightness_factor)
 
 def lighten_skin_and_hair_only(image: Image.Image, face_data) -> Image.Image:
-    """Мягкое осветление кожи и волос."""
+    """Мягкое осветление кожи и волос без размытия."""
     img = image.copy()
 
     x1, y1, x2, y2 = map(int, face_data.bbox)
     width, height = img.size
 
+    # Область вокруг лица
     margin_x = int((x2 - x1) * 0.6)
     margin_y = int((y2 - y1) * 0.9)
     center_x = (x1 + x2) // 2
@@ -185,12 +186,13 @@ def lighten_skin_and_hair_only(image: Image.Image, face_data) -> Image.Image:
     ey2 = min(center_y + margin_y, height)
 
     region = img.crop((ex1, ey1, ex2, ey2))
-
-    glow = region.filter(ImageFilter.GaussianBlur(radius=5))
-    glow = ImageEnhance.Brightness(glow).enhance(1.08)
+    
+    # Осветление без размытия
+    brightened = ImageEnhance.Brightness(region).enhance(1.08)
     overlay = Image.new("RGB", region.size, (250, 235, 220))
-    blended = Image.blend(glow, overlay, 0.03)
+    blended = Image.blend(brightened, overlay, 0.03)
 
+    # Плавная маска перехода
     mask = Image.new("L", region.size, 0)
     draw = ImageDraw.Draw(mask)
     
@@ -199,11 +201,11 @@ def lighten_skin_and_hair_only(image: Image.Image, face_data) -> Image.Image:
             dx = (x - region.size[0] / 2) / (region.size[0] / 2)
             dy = (y - region.size[1] / 2) / (region.size[1] / 2)
             distance = (dx ** 2 + dy ** 2) ** 0.5
-            
             alpha = max(0, min(255, int(255 * (1 - distance))))
             mask.putpixel((x, y), alpha)
 
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=20))
+    # Минимальное размытие только для маски перехода
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=10))
 
     base = img.crop((ex1, ey1, ex2, ey2))
     final_region = Image.composite(blended, base, mask)
@@ -212,13 +214,14 @@ def lighten_skin_and_hair_only(image: Image.Image, face_data) -> Image.Image:
     return img
 
 def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
-    """Улучшение освещения лица."""
+    """Улучшение освещения лица без размытия."""
     if not face_data:
         return image
 
     img = image.copy()
     x1, y1, x2, y2 = map(int, face_data.bbox)
 
+    # Небольшое расширение области
     padding_x = int((x2 - x1) * 0.1)
     padding_y = int((y2 - y1) * 0.1)
     
@@ -228,10 +231,12 @@ def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
     y2 = min(img.height, y2 + padding_y)
 
     face_crop = img.crop((x1, y1, x2, y2))
+    # Осветление без размытия
     bright_face = ImageEnhance.Brightness(face_crop).enhance(1.08)
     warm_overlay = Image.new("RGB", bright_face.size, (255, 230, 200))
     enhanced = Image.blend(bright_face, warm_overlay, 0.04)
 
+    # Плавная маска перехода
     mask = Image.new("L", (x2 - x1, y2 - y1), 0)
     draw = ImageDraw.Draw(mask)
     
@@ -243,7 +248,8 @@ def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
             alpha = max(0, min(255, int(255 * (1 - distance))))
             mask.putpixel((x, y), alpha)
 
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=10))
+    # Минимальное размытие только для маски
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=5))
     
     base = img.crop((x1, y1, x2, y2))
     final_region = Image.composite(enhanced, base, mask)
@@ -458,7 +464,7 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
         raise Exception(f"Ошибка обработки IDNBeauty или постобработки: {e}")
 
 async def enhance_image_remini(image_bytes: bytes) -> bytes:
-    """Улучшение изображения в стиле Remini."""
+    """Улучшение изображения в стиле Remini с использованием Real-ESRGAN."""
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     image = ImageOps.exif_transpose(image)
 
@@ -470,12 +476,15 @@ async def enhance_image_remini(image_bytes: bytes) -> bytes:
         raise Exception("Лицо не обнаружено. Пожалуйста, загрузите чёткий портрет.")
 
     try:
+        # Используем Real-ESRGAN с принудительным включением улучшения лиц
         enhanced_result = replicate.run(
             "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
             input={
                 "image": open(temp_filename, "rb"),
                 "scale": 2,
                 "face_enhance": True,
+                "tile": 0,  # Отключаем разбиение на тайлы
+                "version": "v1.4.0",  # Явно указываем версию
             }
         )
 
@@ -487,8 +496,8 @@ async def enhance_image_remini(image_bytes: bytes) -> bytes:
         face = faces[0] if faces else None
 
         if face:
+            # Применяем только цветокоррекцию без размытия
             enhanced_image = enhance_face_lighting(enhanced_image, face)
-            enhanced_image = apply_soft_filter(enhanced_image, "normal")
             skin_tone = analyze_skin_tone(enhanced_image, face)
             enhanced_image = adjust_by_skin_tone(enhanced_image, skin_tone)
 
