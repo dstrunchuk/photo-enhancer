@@ -219,6 +219,9 @@ def adjust_by_skin_tone(image: Image.Image, tone: str) -> Image.Image:
 # Цветокоррекция с адаптивной яркостью
 def apply_final_polish(image: Image.Image) -> Image.Image:
     image = conditional_brightness(image)
+    
+    avg_brightness = np.array(image.convert("L")).mean()
+    
     if avg_brightness > 100:
         image = ImageEnhance.Contrast(image).enhance(1.10)
     else:
