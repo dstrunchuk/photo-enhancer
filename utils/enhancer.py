@@ -395,9 +395,9 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
     try:
         # Prompt для IDNBeauty
         prompt = (
-            "Soft natural face enhancement. Do not touch eyes, pupils, eyelashes, eyeliner, or makeup. "
-            "Keep gaze direction and natural eye look. Preserve original eyebrows and lashes. "
-            "Do not sharpen. Do not smooth. Only slightly brighten and clean the skin."
+            "Natural subtle face enhancement. Keep all eye features untouched. "
+            "Do not retouch or sharpen eyes, pupils, lashes, brows, or makeup. "
+            "Gaze, shape and natural look must stay original."
         )
         if user_prompt:
             prompt = user_prompt
@@ -408,14 +408,13 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
             input={
                 "image": open(temp_filename, "rb"),
                 "prompt": prompt,
-                "negative_prompt": (
-                    "Do not change or enhance eyes. Do not touch pupils, eyelashes, eyeliner, "
-                    "eyeshadow or eye brightness. Do not reshape, rotate or modify gaze. "
-                    "Do not sharpen or blur eyes. Do not redraw or paint eyes."
+                "negative_prompt" = (
+                    "Do not change eyes, pupils, gaze direction, lashes, eyeliner, brows. "
+                    "No eye enhancement, brightening, or artificial edits. Do not touch makeup."
                 ),
                 "model": "dev",
                 "guidance_scale": 0.6,
-                "prompt_strength": 0.10,
+                "prompt_strength": 0.08,
                 "num_inference_steps": 24,
                 "output_format": "png",
                 "output_quality": 90,
