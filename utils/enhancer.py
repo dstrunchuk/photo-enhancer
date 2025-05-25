@@ -166,27 +166,18 @@ def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
 
     img = image.copy()
     x1, y1, x2, y2 = map(int, face_data.bbox)
-    width, height = x2 - x1, y2 - y1
 
-    # Создаём тёплый осветляющий слой
-    face_region = img.crop((x1, y1, x2, y2))
-    glow = ImageEnhance.Brightness(face_region).enhance(1.12)
+    face_crop = img.crop((x1, y1, x2, y2))
 
-    # Тёплый фильтр
-    overlay = Image.new("RGB", (width, height), (255, 225, 195))  # мягкий молочно-тёплый
-    glow = Image.blend(glow, overlay, 0.08)
+    # Мягкое осветление
+    bright_face = ImageEnhance.Brightness(face_crop).enhance(1.12)
 
-    # Создаём мягкую овальную маску
-    mask = Image.new("L", (width, height), 0)
-    draw = ImageDraw.Draw(mask)
-    draw.ellipse((0, 0, width, height), fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=15))
+    # Тёплый оттенок — без персиково-розового, ближе к молочному
+    warm_overlay = Image.new("RGB", bright_face.size, (255, 230, 200))  # молочный тон
+    enhanced = Image.blend(bright_face, warm_overlay, 0.06)
 
-    # Вставляем обработанный фрагмент через маску
-    base_region = img.crop((x1, y1, x2, y2))
-    blended = Image.composite(glow, base_region, mask)
-    img.paste(blended, (x1, y1))
-
+    # Без масок — просто вставляем обратно
+    img.paste(enhanced, (x1, y1))
     return img
 
 
