@@ -392,6 +392,251 @@ def apply_final_polish(image: Image.Image) -> Image.Image:
 
     return image
 
+def apply_daylight_enhancement(image: Image.Image, face_data) -> Image.Image:
+    """Улучшение фотографии при дневном освещении (селфи)."""
+    img = image.copy()
+    
+    # Более точные параметры, основанные на примере
+    img = ImageEnhance.Brightness(img).enhance(1.08)  # Легкое осветление
+    img = ImageEnhance.Contrast(img).enhance(1.12)    # Умеренный контраст
+    img = ImageEnhance.Color(img).enhance(1.08)       # Легкое насыщение
+    
+    if face_data:
+        x1, y1, x2, y2 = map(int, face_data.bbox)
+        
+        # Минимальное расширение области для селфи
+        padding_x = int((x2 - x1) * 0.1)
+        padding_y = int((y2 - y1) * 0.1)
+        
+        face_x1 = max(0, x1 - padding_x)
+        face_y1 = max(0, y1 - padding_y)
+        face_x2 = min(img.width, x2 + padding_x)
+        face_y2 = min(img.height, y2 + padding_y)
+        
+        face_region = img.crop((face_x1, face_y1, face_x2, face_y2))
+        
+        # Увеличиваем четкость деталей лица
+        face_region = ImageEnhance.Sharpness(face_region).enhance(1.35)
+        
+        # Улучшение кожи
+        skin_mask = Image.new('L', face_region.size, 0)
+        draw = ImageDraw.Draw(skin_mask)
+        draw.ellipse([0, 0, face_region.width, face_region.height], fill=180)
+        skin_mask = skin_mask.filter(ImageFilter.GaussianBlur(radius=10))
+        
+        # Создаем версию с улучшенным цветом кожи
+        enhanced_skin = face_region.copy()
+        enhanced_skin = ImageEnhance.Brightness(enhanced_skin).enhance(1.06)
+        enhanced_skin = ImageEnhance.Color(enhanced_skin).enhance(1.12)
+        
+        # Смешиваем с оригиналом
+        face_region = Image.composite(enhanced_skin, face_region, skin_mask)
+        
+        # Возвращаем обработанное лицо
+        img.paste(face_region, (face_x1, face_y1))
+        
+        # Более мягкий эффект боке для фона
+        background_blur = img.filter(ImageFilter.GaussianBlur(radius=1.5))
+        
+        # Маска для плавного перехода
+        mask = Image.new('L', img.size, 0)
+        draw = ImageDraw.Draw(mask)
+        draw.ellipse([
+            face_x1 - padding_x,
+            face_y1 - padding_y,
+            face_x2 + padding_x,
+            face_y2 + padding_y
+        ], fill=255)
+        mask = mask.filter(ImageFilter.GaussianBlur(radius=padding_x))
+        
+        # Смешиваем с фоном
+        img = Image.composite(img, background_blur, mask)
+    
+    return img
+
+def apply_club_photo_enhancement(image: Image.Image, face_data) -> Image.Image:
+    """Улучшение фотографии в клубном освещении."""
+    img = image.copy()
+    
+    # Применяем шумоподавление перед основной обработкой
+    img = img.filter(ImageFilter.MedianFilter(size=3))
+    
+    # Более мягкие параметры для избежания зернистости
+    img = ImageEnhance.Brightness(img).enhance(1.15)
+    img = ImageEnhance.Contrast(img).enhance(1.12)
+    img = ImageEnhance.Color(img).enhance(1.15)
+    
+    if face_data:
+        x1, y1, x2, y2 = map(int, face_data.bbox)
+        
+        # Увеличиваем область обработки для более плавного перехода
+        padding_x = int((x2 - x1) * 0.25)
+        padding_y = int((y2 - y1) * 0.25)
+        
+        face_x1 = max(0, x1 - padding_x)
+        face_y1 = max(0, y1 - padding_y)
+        face_x2 = min(img.width, x2 + padding_x)
+        face_y2 = min(img.height, y2 + padding_y)
+        
+        face_region = img.crop((face_x1, face_y1, face_x2, face_y2))
+        
+        # Применяем осветление до повышения резкости
+        face_region = ImageEnhance.Brightness(face_region).enhance(1.18)
+        
+        # Создаем маску для кожи и волос
+        skin_mask = Image.new('L', face_region.size, 0)
+        draw = ImageDraw.Draw(skin_mask)
+        draw.ellipse([0, 0, face_region.width, face_region.height], fill=220)
+        skin_mask = skin_mask.filter(ImageFilter.GaussianBlur(radius=15))
+        
+        # Создаем улучшенную версию для кожи и волос
+        enhanced_skin = face_region.copy()
+        enhanced_skin = ImageEnhance.Brightness(enhanced_skin).enhance(1.20)
+        enhanced_skin = ImageEnhance.Color(enhanced_skin).enhance(1.12)
+        
+        # Коррекция цветового баланса
+        r, g, b = enhanced_skin.split()
+        r = r.point(lambda x: min(255, x * 1.08))  # Усиливаем красный канал
+        b = b.point(lambda x: min(255, x * 0.92))  # Уменьшаем синий для теплоты
+        enhanced_skin = Image.merge('RGB', (r, g, b))
+        
+        # Применяем повышение резкости после цветокоррекции
+        enhanced_skin = enhanced_skin.filter(ImageFilter.UnsharpMask(radius=1.5, percent=150, threshold=3))
+        
+        # Смешиваем с оригиналом используя улучшенную маску
+        face_region = Image.composite(enhanced_skin, face_region, skin_mask)
+        
+        # Возвращаем обработанное лицо
+        img.paste(face_region, (face_x1, face_y1))
+        
+        # Создаем маску для фона с большим радиусом размытия
+        background_mask = Image.new('L', img.size, 0)
+        draw = ImageDraw.Draw(background_mask)
+        draw.ellipse([
+            face_x1 - padding_x,
+            face_y1 - padding_y,
+            face_x2 + padding_x,
+            face_y2 + padding_y
+        ], fill=255)
+        background_mask = background_mask.filter(ImageFilter.GaussianBlur(radius=padding_x))
+        
+        # Создаем размытый фон с меньшей интенсивностью размытия
+        background_blur = img.filter(ImageFilter.GaussianBlur(radius=2.0))
+        
+        # Смешиваем с фоном
+        img = Image.composite(img, background_blur, background_mask)
+    
+    return img
+
+def apply_evening_enhancement(image: Image.Image, face_data) -> Image.Image:
+    """Улучшение фотографии при вечернем/искусственном освещении."""
+    img = image.copy()
+    
+    # Применяем шумоподавление перед основной обработкой
+    img = img.filter(ImageFilter.MedianFilter(size=3))
+    
+    # Более мягкие параметры обработки
+    img = ImageEnhance.Brightness(img).enhance(1.18)
+    img = ImageEnhance.Contrast(img).enhance(1.08)
+    img = ImageEnhance.Color(img).enhance(1.10)
+    
+    if face_data:
+        x1, y1, x2, y2 = map(int, face_data.bbox)
+        
+        # Увеличиваем область обработки
+        padding_x = int((x2 - x1) * 0.25)
+        padding_y = int((y2 - y1) * 0.25)
+        
+        face_x1 = max(0, x1 - padding_x)
+        face_y1 = max(0, y1 - padding_y)
+        face_x2 = min(img.width, x2 + padding_x)
+        face_y2 = min(img.height, y2 + padding_y)
+        
+        face_region = img.crop((face_x1, face_y1, face_x2, face_y2))
+        
+        # Осветляем до повышения резкости
+        face_region = ImageEnhance.Brightness(face_region).enhance(1.20)
+        
+        # Создаем маску для кожи и волос
+        skin_mask = Image.new('L', face_region.size, 0)
+        draw = ImageDraw.Draw(skin_mask)
+        draw.ellipse([0, 0, face_region.width, face_region.height], fill=220)
+        skin_mask = skin_mask.filter(ImageFilter.GaussianBlur(radius=15))
+        
+        # Улучшаем кожу и волосы
+        enhanced_skin = face_region.copy()
+        enhanced_skin = ImageEnhance.Brightness(enhanced_skin).enhance(1.22)
+        enhanced_skin = ImageEnhance.Color(enhanced_skin).enhance(1.08)
+        
+        # Коррекция желтого оттенка
+        r, g, b = enhanced_skin.split()
+        g = g.point(lambda x: min(255, x * 0.92))  # Уменьшаем зеленый для борьбы с желтизной
+        b = b.point(lambda x: min(255, x * 1.05))  # Немного усиливаем синий для баланса
+        enhanced_skin = Image.merge('RGB', (r, g, b))
+        
+        # Применяем повышение резкости после цветокоррекции
+        enhanced_skin = enhanced_skin.filter(ImageFilter.UnsharpMask(radius=1.5, percent=150, threshold=3))
+        
+        # Смешиваем с оригиналом
+        face_region = Image.composite(enhanced_skin, face_region, skin_mask)
+        
+        # Возвращаем обработанное лицо
+        img.paste(face_region, (face_x1, face_y1))
+        
+        # Создаем маску для фона
+        background_mask = Image.new('L', img.size, 0)
+        draw = ImageDraw.Draw(background_mask)
+        draw.ellipse([
+            face_x1 - padding_x,
+            face_y1 - padding_y,
+            face_x2 + padding_x,
+            face_y2 + padding_y
+        ], fill=255)
+        background_mask = background_mask.filter(ImageFilter.GaussianBlur(radius=padding_x))
+        
+        # Создаем размытый фон
+        background_blur = img.filter(ImageFilter.GaussianBlur(radius=1.8))
+        
+        # Смешиваем с фоном
+        img = Image.composite(img, background_blur, background_mask)
+    
+    return img
+
+def detect_scene_type(image: Image.Image) -> str:
+    """Определение типа сцены на фотографии."""
+    img_np = np.array(image)
+    
+    # Анализируем общую яркость
+    brightness = np.mean(img_np)
+    
+    # Анализируем цветовые каналы
+    r, g, b = image.split()
+    r_mean = np.mean(np.array(r))
+    g_mean = np.mean(np.array(g))
+    b_mean = np.mean(np.array(b))
+    
+    # Проверяем наличие синего/фиолетового освещения (клубное)
+    is_club = b_mean > (r_mean + g_mean) / 2 + 15
+    
+    # Проверяем желтый оттенок (характерный для искусственного освещения)
+    yellow_tint = (r_mean + g_mean) / 2 > b_mean + 20
+    
+    # Проверяем равномерность освещения
+    std_dev = np.std(img_np)
+    is_uniform = std_dev < 50
+    
+    # Определяем тип сцены
+    if is_club or (brightness < 90 and b_mean > r_mean):
+        return "club"
+    elif brightness > 160 and is_uniform:
+        return "daylight"
+    elif yellow_tint and 70 <= brightness <= 160:
+        return "evening"
+    elif brightness < 70:
+        return "evening"  # Для темных фото тоже используем вечернюю обработку
+    else:
+        return "daylight"
+
 # =============================================================================
 # Основные функции обработки
 # =============================================================================
@@ -464,7 +709,7 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
         raise Exception(f"Ошибка обработки IDNBeauty или постобработки: {e}")
 
 async def enhance_image_remini(image_bytes: bytes) -> bytes:
-    """Улучшение изображения в стиле Remini с использованием Real-ESRGAN."""
+    """Улучшение изображения в стиле Remini с определением сценария."""
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     image = ImageOps.exif_transpose(image)
 
@@ -476,35 +721,41 @@ async def enhance_image_remini(image_bytes: bytes) -> bytes:
         raise Exception("Лицо не обнаружено. Пожалуйста, загрузите чёткий портрет.")
 
     try:
-        # Используем Real-ESRGAN с принудительным включением улучшения лиц
+        # Определяем тип сцены
+        scene_type = detect_scene_type(image)
+        
+        # Базовое улучшение качества через Real-ESRGAN
         enhanced_result = replicate.run(
             "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
             input={
                 "image": open(temp_filename, "rb"),
                 "scale": 2,
                 "face_enhance": True,
-                "tile": 0,  # Отключаем разбиение на тайлы
-                "version": "v1.4.0",  # Явно указываем версию
+                "tile": 0,
+                "version": "v1.4.0",
             }
         )
 
         response = requests.get(enhanced_result)
         enhanced_image = Image.open(io.BytesIO(response.content)).convert("RGB")
 
+        # Анализ лиц
         img_np = np.array(enhanced_image)
         faces = face_analyzer.get(img_np)
         face = faces[0] if faces else None
 
+        # Применяем обработку в зависимости от сценария
         if face:
-            # Применяем только цветокоррекцию без размытия
-            enhanced_image = enhance_face_lighting(enhanced_image, face)
-            skin_tone = analyze_skin_tone(enhanced_image, face)
-            enhanced_image = adjust_by_skin_tone(enhanced_image, skin_tone)
+            if scene_type == "club":
+                enhanced_image = apply_club_photo_enhancement(enhanced_image, face)
+            elif scene_type == "evening":
+                enhanced_image = apply_evening_enhancement(enhanced_image, face)
+            else:
+                enhanced_image = apply_daylight_enhancement(enhanced_image, face)
 
-        final_image = apply_final_polish(enhanced_image)
-
+        # Сохраняем результат
         final_bytes = io.BytesIO()
-        final_image.save(final_bytes, format="JPEG", quality=95, subsampling=0)
+        enhanced_image.save(final_bytes, format="JPEG", quality=95, subsampling=0)
         final_bytes.seek(0)
 
         os.remove(temp_filename)
