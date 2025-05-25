@@ -165,24 +165,24 @@ def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
         return image
 
     x1, y1, x2, y2 = map(int, face_data.bbox)
-    face_crop = image.crop((x1, y1, x2, y2)).copy()
+    face_crop = image.crop((x1, y1, x2, y2))
 
-    # Осветление лица — только кожа/волосы
-    bright_face = ImageEnhance.Brightness(face_crop).enhance(1.12)
+    # Лёгкий glow и молочный тон
+    glow = face_crop.filter(ImageFilter.GaussianBlur(radius=6))
+    glow = ImageEnhance.Brightness(glow).enhance(1.15)
 
-    # Тёплый мягкий overlay — слегка персиковый
-    warm_overlay = Image.new("RGB", face_crop.size, (255, 215, 180))
-    warm_face = Image.blend(bright_face, warm_overlay, 0.04)
+    warm_overlay = Image.new("RGB", face_crop.size, (255, 235, 210))  # молочный оттенок
+    warm_face = Image.blend(glow, warm_overlay, 0.05)
 
-    # Маска с мягкими краями
+    # Мягкая эллиптическая маска
     mask = Image.new("L", face_crop.size, 0)
     draw = ImageDraw.Draw(mask)
     draw.ellipse((0, 0, face_crop.size[0], face_crop.size[1]), fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(10))
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=10))
 
-    # Вставляем только мягкое осветление лица обратно
-    background_region = image.crop((x1, y1, x2, y2))
-    blended = Image.composite(warm_face, background_region, mask)
+    # Вставка без искажения границ
+    original = image.crop((x1, y1, x2, y2))
+    blended = Image.composite(warm_face, original, mask)
     image.paste(blended, (x1, y1))
 
     return image
@@ -287,9 +287,10 @@ def apply_final_polish(image: Image.Image) -> Image.Image:
     b = b.point(lambda i: i * 0.97)
     image = Image.merge("RGB", (r, g, b))
 
-    warm_overlay = Image.new("RGB", image.size, (255, 185, 140))
-    image = Image.blend(image, warm_overlay, 0.04)
-    image = ImageEnhance.Brightness(image).enhance(1.04)
+    image = ImageEnhance.Brightness(image).enhance(1.03)
+    warm_overlay = Image.new("RGB", image.size, (255, 225, 190))  # более нейтральный
+    image = Image.blend(image, warm_overlay, 0.015)
+    
 
     return image
 
