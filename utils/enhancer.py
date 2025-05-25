@@ -125,25 +125,24 @@ def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
         return image
 
     x1, y1, x2, y2 = map(int, face_data.bbox)
-    face_crop = image.crop((x1, y1, x2, y2))
+    face_crop = image.crop((x1, y1, x2, y2)).copy()
 
-    # Тёплый soft-light overlay
-    glow = face_crop.filter(ImageFilter.GaussianBlur(radius=7))
-    glow = ImageEnhance.Brightness(glow).enhance(1.15)
-    glow = Image.blend(face_crop, glow, 0.35)
+    # Осветление лица — только кожа/волосы
+    bright_face = ImageEnhance.Brightness(face_crop).enhance(1.12)
 
-    # Персиковый фильтр
-    warm_overlay = Image.new("RGB", face_crop.size, (255, 200, 170))
-    warm_face = Image.blend(glow, warm_overlay, 0.08)
+    # Тёплый мягкий overlay — слегка персиковый
+    warm_overlay = Image.new("RGB", face_crop.size, (255, 215, 180))
+    warm_face = Image.blend(bright_face, warm_overlay, 0.04)
 
-    # Маска — эллипс с мягкими краями
+    # Маска с мягкими краями
     mask = Image.new("L", face_crop.size, 0)
     draw = ImageDraw.Draw(mask)
     draw.ellipse((0, 0, face_crop.size[0], face_crop.size[1]), fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(12))
+    mask = mask.filter(ImageFilter.GaussianBlur(10))
 
-    region = image.crop((x1, y1, x2, y2))
-    blended = Image.composite(warm_face, region, mask)
+    # Вставляем только мягкое осветление лица обратно
+    background_region = image.crop((x1, y1, x2, y2))
+    blended = Image.composite(warm_face, background_region, mask)
     image.paste(blended, (x1, y1))
 
     return image
@@ -236,9 +235,10 @@ def apply_final_polish(image: Image.Image) -> Image.Image:
     else:
         sharpness = 1.05
     image = ImageEnhance.Sharpness(image).enhance(sharpness)
-    # Тёплый персиковый фильтр чуть сильнее
-    warm_overlay = Image.new("RGB", image.size, (255, 190, 160))  # мягче и светлее
-    image = Image.blend(image, warm_overlay, 0.06)
+    # Мягкий молочный тон без розового и персикового
+    warm_overlay = Image.new("RGB", image.size, (255, 245, 225))  # светло-молочный, почти нейтральный
+    image = Image.blend(image, warm_overlay, 0.03)
+    image = ImageEnhance.Brightness(image).enhance(1.06)
 
     # Яркость немного выше
     image = ImageEnhance.Brightness(image).enhance(1.06)
