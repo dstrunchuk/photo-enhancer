@@ -174,8 +174,8 @@ def lighten_skin_and_hair_only(image: Image.Image, face_data) -> Image.Image:
     x1, y1, x2, y2 = map(int, face_data.bbox)
     width, height = img.size
 
-    margin_x = int((x2 - x1) * 0.8)
-    margin_y = int((y2 - y1) * 1.2)
+    margin_x = int((x2 - x1) * 0.6)
+    margin_y = int((y2 - y1) * 0.9)
     center_x = (x1 + x2) // 2
     center_y = (y1 + y2) // 2
 
@@ -186,15 +186,24 @@ def lighten_skin_and_hair_only(image: Image.Image, face_data) -> Image.Image:
 
     region = img.crop((ex1, ey1, ex2, ey2))
 
-    glow = region.filter(ImageFilter.GaussianBlur(radius=10))
-    glow = ImageEnhance.Brightness(glow).enhance(1.12)
+    glow = region.filter(ImageFilter.GaussianBlur(radius=5))
+    glow = ImageEnhance.Brightness(glow).enhance(1.08)
     overlay = Image.new("RGB", region.size, (250, 235, 220))
-    blended = Image.blend(glow, overlay, 0.04)
+    blended = Image.blend(glow, overlay, 0.03)
 
     mask = Image.new("L", region.size, 0)
     draw = ImageDraw.Draw(mask)
-    draw.ellipse((0, 0, region.size[0], region.size[1]), fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=15))
+    
+    for y in range(region.size[1]):
+        for x in range(region.size[0]):
+            dx = (x - region.size[0] / 2) / (region.size[0] / 2)
+            dy = (y - region.size[1] / 2) / (region.size[1] / 2)
+            distance = (dx ** 2 + dy ** 2) ** 0.5
+            
+            alpha = max(0, min(255, int(255 * (1 - distance))))
+            mask.putpixel((x, y), alpha)
+
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=20))
 
     base = img.crop((ex1, ey1, ex2, ey2))
     final_region = Image.composite(blended, base, mask)
@@ -210,11 +219,36 @@ def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
     img = image.copy()
     x1, y1, x2, y2 = map(int, face_data.bbox)
 
+    padding_x = int((x2 - x1) * 0.1)
+    padding_y = int((y2 - y1) * 0.1)
+    
+    x1 = max(0, x1 - padding_x)
+    y1 = max(0, y1 - padding_y)
+    x2 = min(img.width, x2 + padding_x)
+    y2 = min(img.height, y2 + padding_y)
+
     face_crop = img.crop((x1, y1, x2, y2))
-    bright_face = ImageEnhance.Brightness(face_crop).enhance(1.12)
+    bright_face = ImageEnhance.Brightness(face_crop).enhance(1.08)
     warm_overlay = Image.new("RGB", bright_face.size, (255, 230, 200))
-    enhanced = Image.blend(bright_face, warm_overlay, 0.06)
-    img.paste(enhanced, (x1, y1))
+    enhanced = Image.blend(bright_face, warm_overlay, 0.04)
+
+    mask = Image.new("L", (x2 - x1, y2 - y1), 0)
+    draw = ImageDraw.Draw(mask)
+    
+    for y in range(y2 - y1):
+        for x in range(x2 - x1):
+            dx = (x - (x2 - x1) / 2) / ((x2 - x1) / 2)
+            dy = (y - (y2 - y1) / 2) / ((y2 - y1) / 2)
+            distance = (dx ** 2 + dy ** 2) ** 0.5
+            alpha = max(0, min(255, int(255 * (1 - distance))))
+            mask.putpixel((x, y), alpha)
+
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=10))
+    
+    base = img.crop((x1, y1, x2, y2))
+    final_region = Image.composite(enhanced, base, mask)
+    img.paste(final_region, (x1, y1))
+
     return img
 
 def apply_soft_filter(image: Image.Image, intensity: str = "normal") -> Image.Image:
