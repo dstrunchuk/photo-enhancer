@@ -695,7 +695,7 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
         raise Exception(f"Ошибка обработки IDNBeauty или постобработки: {e}")
 
 async def enhance_image_remini(image_bytes: bytes) -> bytes:
-    """Улучшение изображения в стиле Remini с определением сценария."""
+    """Улучшение изображения с определением сценария."""
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     image = ImageOps.exif_transpose(image)
 
@@ -710,34 +710,19 @@ async def enhance_image_remini(image_bytes: bytes) -> bytes:
         # Определяем тип сцены
         scene_type = detect_scene_type(image)
         
-        # Базовое улучшение качества через Real-ESRGAN
-        enhanced_result = replicate.run(
-            "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
-            input={
-                "image": open(temp_filename, "rb"),
-                "scale": 1,
-                "face_enhance": True,
-                "tile": 0,
-                "version": "v1.4.0",
-            }
-        )
-
-        response = requests.get(enhanced_result)
-        enhanced_image = Image.open(io.BytesIO(response.content)).convert("RGB")
-
         # Анализ лиц
-        img_np = np.array(enhanced_image)
+        img_np = np.array(image)
         faces = face_analyzer.get(img_np)
         face = faces[0] if faces else None
 
         # Применяем обработку в зависимости от сценария
         if face:
             if scene_type == "club":
-                enhanced_image = apply_club_photo_enhancement(enhanced_image, face)
+                enhanced_image = apply_club_photo_enhancement(image, face)
             elif scene_type == "evening":
-                enhanced_image = apply_evening_enhancement(enhanced_image, face)
+                enhanced_image = apply_evening_enhancement(image, face)
             else:
-                enhanced_image = apply_daylight_enhancement(enhanced_image, face)
+                enhanced_image = apply_daylight_enhancement(image, face)
 
         # Сохраняем результат
         final_bytes = io.BytesIO()
