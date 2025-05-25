@@ -128,13 +128,13 @@ def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
     face_crop = image.crop((x1, y1, x2, y2))
 
     # Тёплый soft-light overlay
-    glow = face_crop.filter(ImageFilter.GaussianBlur(radius=8))
-    glow = ImageEnhance.Brightness(glow).enhance(1.2)
+    glow = face_crop.filter(ImageFilter.GaussianBlur(radius=7))
+    glow = ImageEnhance.Brightness(glow).enhance(1.15)
     glow = Image.blend(face_crop, glow, 0.35)
 
     # Персиковый фильтр
-    warm_overlay = Image.new("RGB", face_crop.size, (255, 190, 155))
-    warm_face = Image.blend(glow, warm_overlay, 0.06)
+    warm_overlay = Image.new("RGB", face_crop.size, (255, 200, 170))
+    warm_face = Image.blend(glow, warm_overlay, 0.08)
 
     # Маска — эллипс с мягкими краями
     mask = Image.new("L", face_crop.size, 0)
@@ -219,7 +219,10 @@ def adjust_by_skin_tone(image: Image.Image, tone: str) -> Image.Image:
 # Цветокоррекция с адаптивной яркостью
 def apply_final_polish(image: Image.Image) -> Image.Image:
     image = conditional_brightness(image)
-    image = ImageEnhance.Contrast(image).enhance(1.10)
+    if avg_brightness > 100:
+        image = ImageEnhance.Contrast(image).enhance(1.10)
+    else:
+        image = ImageEnhance.Contrast(image).enhance(1.02)  # меньше на тёмных
     image = ImageEnhance.Color(image).enhance(1.10)
 
     avg_brightness = np.array(image.convert("L")).mean()
@@ -230,6 +233,16 @@ def apply_final_polish(image: Image.Image) -> Image.Image:
     else:
         sharpness = 1.05
     image = ImageEnhance.Sharpness(image).enhance(sharpness)
+    # Тёплый персиковый фильтр чуть сильнее
+    warm_overlay = Image.new("RGB", image.size, (255, 190, 160))  # мягче и светлее
+    image = Image.blend(image, warm_overlay, 0.06)
+
+    # Яркость немного выше
+    image = ImageEnhance.Brightness(image).enhance(1.06)
+    # Убираем фиолетовый тон (легкий фильтр, чуть подавляем синий)
+    r, g, b = image.split()
+    b = b.point(lambda i: i * 0.97)
+    image = Image.merge("RGB", (r, g, b))
 
     warm_overlay = Image.new("RGB", image.size, (255, 185, 140))
     image = Image.blend(image, warm_overlay, 0.04)
