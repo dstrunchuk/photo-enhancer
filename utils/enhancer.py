@@ -164,28 +164,30 @@ def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
     if not face_data:
         return image
 
+    img = image.copy()
     x1, y1, x2, y2 = map(int, face_data.bbox)
-    face_crop = image.crop((x1, y1, x2, y2))
+    width, height = x2 - x1, y2 - y1
 
-    # Лёгкий glow и молочный тон
-    glow = face_crop.filter(ImageFilter.GaussianBlur(radius=6))
-    glow = ImageEnhance.Brightness(glow).enhance(1.15)
+    # Создаём тёплый осветляющий слой
+    face_region = img.crop((x1, y1, x2, y2))
+    glow = ImageEnhance.Brightness(face_region).enhance(1.12)
 
-    warm_overlay = Image.new("RGB", face_crop.size, (255, 235, 210))  # молочный оттенок
-    warm_face = Image.blend(glow, warm_overlay, 0.05)
+    # Тёплый фильтр
+    overlay = Image.new("RGB", (width, height), (255, 225, 195))  # мягкий молочно-тёплый
+    glow = Image.blend(glow, overlay, 0.08)
 
-    # Мягкая эллиптическая маска
-    mask = Image.new("L", face_crop.size, 0)
+    # Создаём мягкую овальную маску
+    mask = Image.new("L", (width, height), 0)
     draw = ImageDraw.Draw(mask)
-    draw.ellipse((0, 0, face_crop.size[0], face_crop.size[1]), fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=10))
+    draw.ellipse((0, 0, width, height), fill=255)
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=15))
 
-    # Вставка без искажения границ
-    original = image.crop((x1, y1, x2, y2))
-    blended = Image.composite(warm_face, original, mask)
-    image.paste(blended, (x1, y1))
+    # Вставляем обработанный фрагмент через маску
+    base_region = img.crop((x1, y1, x2, y2))
+    blended = Image.composite(glow, base_region, mask)
+    img.paste(blended, (x1, y1))
 
-    return image
+    return img
 
 
 def analyze_skin_tone(image: Image.Image, face_data) -> str:
