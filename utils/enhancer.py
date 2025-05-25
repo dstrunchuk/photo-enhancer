@@ -120,6 +120,33 @@ def conditional_brightness(image: Image.Image) -> Image.Image:
         brightness_factor = np.clip(1.4 - (avg_brightness - 80) * 0.00375, 1.1, 1.4)
     return ImageEnhance.Brightness(image).enhance(brightness_factor)
 
+def lighten_skin_and_hair_only(image: Image.Image, face_data) -> Image.Image:
+    if not face_data:
+        return image
+
+    x1, y1, x2, y2 = map(int, face_data.bbox)
+    face_crop = image.crop((x1, y1, x2, y2))
+
+    # Молочный оттенок
+    overlay = Image.new("RGB", face_crop.size, (255, 245, 225))
+    softened = Image.blend(face_crop, overlay, 0.05)
+
+    # Осветление
+    softened = ImageEnhance.Brightness(softened).enhance(1.08)
+
+    # Маска — мягкий эллипс
+    mask = Image.new("L", face_crop.size, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.ellipse((0, 0, face_crop.size[0], face_crop.size[1]), fill=255)
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=10))
+
+    # Смешиваем с оригиналом
+    base = image.crop((x1, y1, x2, y2))
+    blended = Image.composite(softened, base, mask)
+    image.paste(blended, (x1, y1))
+
+    return image
+
 def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
     if not face_data:
         return image
@@ -381,6 +408,11 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
             input={
                 "image": open(temp_filename, "rb"),
                 "prompt": prompt,
+                "negative_prompt": (
+                    "Do not change or enhance eyes. Do not touch pupils, eyelashes, eyeliner, "
+                    "eyeshadow or eye brightness. Do not reshape, rotate or modify gaze. "
+                    "Do not sharpen or blur eyes. Do not redraw or paint eyes."
+                ),
                 "model": "dev",
                 "guidance_scale": 0.6,
                 "prompt_strength": 0.10,
@@ -406,14 +438,18 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
         image_idn = adjust_by_skin_tone(image_idn, skin_tone)
         scene_type = classify_scene(image_idn)
 
-        # Цветокоррекция
+# Осветление лица при ночных сценах
+        if scene_type == "night" and face:
+            image_idn = enhance_face_lighting(image_idn, face)
+
+# Локальное осветление кожи и волос
+        if face:
+            image_idn = lighten_skin_and_hair_only(image_idn, face)
+
+# Цветокоррекция (после локальных улучшений)
         final_image = apply_final_polish(image_idn)
 
-        # Осветление лица при ночных сценах
-        if scene_type == "night":
-            final_image = enhance_face_lighting(final_image, face)
-
-        # Сохранение
+# Сохранение
         final_bytes = io.BytesIO()
         final_image.save(final_bytes, format="JPEG", quality=99, subsampling=0)
         final_bytes.seek(0)
