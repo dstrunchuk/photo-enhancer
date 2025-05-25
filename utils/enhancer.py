@@ -121,31 +121,44 @@ def conditional_brightness(image: Image.Image) -> Image.Image:
     return ImageEnhance.Brightness(image).enhance(brightness_factor)
 
 def lighten_skin_and_hair_only(image: Image.Image, face_data) -> Image.Image:
-    if not face_data:
-        return image
+    """Мягкое осветление кожи и волос без влияния на фон."""
+    img = image.copy()
 
     x1, y1, x2, y2 = map(int, face_data.bbox)
-    face_crop = image.crop((x1, y1, x2, y2))
+    width, height = img.size
 
-    # Молочный оттенок
-    overlay = Image.new("RGB", face_crop.size, (255, 245, 225))
-    softened = Image.blend(face_crop, overlay, 0.05)
+    # Расширяем зону вокруг лица, чтобы захватить волосы и плечи
+    margin_x = int((x2 - x1) * 0.8)
+    margin_y = int((y2 - y1) * 1.2)
+    center_x = (x1 + x2) // 2
+    center_y = (y1 + y2) // 2
 
-    # Осветление
-    softened = ImageEnhance.Brightness(softened).enhance(1.08)
+    ex1 = max(center_x - margin_x, 0)
+    ey1 = max(center_y - margin_y, 0)
+    ex2 = min(center_x + margin_x, width)
+    ey2 = min(center_y + margin_y, height)
 
-    # Маска — мягкий эллипс
-    mask = Image.new("L", face_crop.size, 0)
+    # Вырезаем зону для осветления
+    region = img.crop((ex1, ey1, ex2, ey2))
+
+    # Молочный тон + лёгкое свечение
+    glow = region.filter(ImageFilter.GaussianBlur(radius=10))
+    glow = ImageEnhance.Brightness(glow).enhance(1.12)
+    overlay = Image.new("RGB", region.size, (250, 235, 220))  # молочный светлый
+    blended = Image.blend(glow, overlay, 0.04)
+
+    # Мягкая маска
+    mask = Image.new("L", region.size, 0)
     draw = ImageDraw.Draw(mask)
-    draw.ellipse((0, 0, face_crop.size[0], face_crop.size[1]), fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=10))
+    draw.ellipse((0, 0, region.size[0], region.size[1]), fill=255)
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=15))
 
-    # Смешиваем с оригиналом
-    base = image.crop((x1, y1, x2, y2))
-    blended = Image.composite(softened, base, mask)
-    image.paste(blended, (x1, y1))
+    # Наложение
+    base = img.crop((ex1, ey1, ex2, ey2))
+    final_region = Image.composite(blended, base, mask)
+    img.paste(final_region, (ex1, ey1))
 
-    return image
+    return img
 
 def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
     if not face_data:
@@ -341,7 +354,7 @@ def apply_scenario(image: Image.Image, face_data, scene_type: str) -> Image.Imag
         img = Image.blend(img, warm_overlay, alpha=0.08)
 
         # Уменьшение резкости в лице
-        blurred = img.filter(ImageFilter.GaussianBlur(radius=1.5))
+        blurred = img.filter(ImageFilter.GaussianBlur(radius=1.3))
         img.paste(blurred, mask=face_mask)
 
     elif scene_type == "overexposed":
@@ -352,7 +365,7 @@ def apply_scenario(image: Image.Image, face_data, scene_type: str) -> Image.Imag
     if face_data:
         x1, y1, x2, y2 = map(int, face_data.bbox)
         face_region = img.crop((x1, y1, x2, y2))
-        bright_face = ImageEnhance.Brightness(face_region).enhance(1.12)
+        bright_face = ImageEnhance.Brightness(face_region).enhance(1.10)
         img.paste(bright_face, (x1, y1))
 
     return img
@@ -380,41 +393,37 @@ def apply_soft_filter(image: Image.Image, intensity: str = "normal") -> Image.Im
 
 # Основная функция
 async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
-    # Открытие изображения
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     image = ImageOps.exif_transpose(image)
 
     temp_filename = f"{uuid.uuid4()}.jpg"
     image.save(temp_filename)
 
-    # Проверка лица до IDNBeauty
     if not has_face(temp_filename):
         os.remove(temp_filename)
         raise Exception("Лицо не обнаружено. Пожалуйста, загрузите чёткий портрет.")
 
     try:
-        # Prompt для IDNBeauty
+        # Промпт, исключающий любые вмешательства в глаза
         prompt = (
-            "Natural subtle face enhancement. Keep all eye features untouched. "
-            "Do not retouch or sharpen eyes, pupils, lashes, brows, or makeup. "
-            "Gaze, shape and natural look must stay original."
+            "Soft natural face enhancement. "
+            "Do not touch eyes, pupils, eyelashes, eyelids, eyeliner, eye direction, or makeup. "
+            "Preserve original lashes, gaze, and eye shape. "
+            "Do not sharpen. Do not smooth. Do not change expression. "
+            "Only slightly brighten and clean the skin. "
         )
         if user_prompt:
             prompt = user_prompt
 
-        # Запуск IDNBeauty
+        # IDNBeauty
         idnbeauty_result = replicate.run(
             "torrikabe-ai/idnbeauty:5f994656b3b88df2e21a3cf0a81371d66bd6ff45171f3e5618bb314bdc8b64b1",
             input={
                 "image": open(temp_filename, "rb"),
                 "prompt": prompt,
-                "negative_prompt": (
-                    "Do not change eyes, pupils, gaze direction, lashes, eyeliner, brows. "
-                    "No eye enhancement, brightening, or artificial edits. Do not touch makeup."
-                ),
                 "model": "dev",
                 "guidance_scale": 0.6,
-                "prompt_strength": 0.09,
+                "prompt_strength": 0.10,
                 "num_inference_steps": 24,
                 "output_format": "png",
                 "output_quality": 90,
@@ -424,34 +433,36 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
             }
         )
 
-        # Обработка результата
+        # Загрузка результата
         response = requests.get(str(idnbeauty_result[0]))
         image_idn = Image.open(io.BytesIO(response.content)).convert("RGB")
 
+        # Анализ
         img_np = np.array(image_idn)
         faces = face_analyzer.get(img_np)
         face = faces[0] if faces else None
-
-        # Анализ и корректировка
-        skin_tone = analyze_skin_tone(image_idn, face)
-        image_idn = adjust_by_skin_tone(image_idn, skin_tone)
         scene_type = classify_scene(image_idn)
+        skin_tone = analyze_skin_tone(image_idn, face)
 
-# Осветление лица при ночных сценах
-        if scene_type == "night" and face:
-            image_idn = enhance_face_lighting(image_idn, face)
+        # Тон кожи
+        image_idn = adjust_by_skin_tone(image_idn, skin_tone)
 
-# Локальное осветление кожи и волос
-        if face:
-            image_idn = lighten_skin_and_hair_only(image_idn, face)
-
-# Цветокоррекция (после локальных улучшений)
+        # Цветокоррекция
         final_image = apply_final_polish(image_idn)
 
-# Сохранение
+        # Локальное мягкое осветление кожи и волос
+        if face:
+            final_image = lighten_skin_and_hair_only(final_image, face)
+
+        # Дополнительное осветление для ночных фото
+        if scene_type == "night" and face:
+            final_image = enhance_face_lighting(final_image, face)
+
+        # Сохранение
         final_bytes = io.BytesIO()
         final_image.save(final_bytes, format="JPEG", quality=99, subsampling=0)
         final_bytes.seek(0)
+
         return final_bytes.read()
 
     except Exception as e:
