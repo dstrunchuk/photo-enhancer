@@ -408,13 +408,13 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
             input={
                 "image": open(temp_filename, "rb"),
                 "prompt": prompt,
-                "negative_prompt" = (
+                "negative_prompt": (
                     "Do not change eyes, pupils, gaze direction, lashes, eyeliner, brows. "
                     "No eye enhancement, brightening, or artificial edits. Do not touch makeup."
                 ),
                 "model": "dev",
                 "guidance_scale": 0.6,
-                "prompt_strength": 0.08,
+                "prompt_strength": 0.09,
                 "num_inference_steps": 24,
                 "output_format": "png",
                 "output_quality": 90,
