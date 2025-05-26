@@ -527,31 +527,48 @@ def is_headlight_orange(color):
     )
 
 def normalize_skin_tone(face_region: Image.Image) -> Image.Image:
-    """Нормализация цвета кожи к естественному теплому белому."""
-    # Анализируем текущий цвет кожи
+    """
+    Нормализация цвета кожи к естественному теплому оттенку.
+    
+    Параметры:
+    - face_region: область изображения с лицом
+    
+    Алгоритм:
+    1. Находит пиксели кожи (R,G,B > 60)
+    2. Анализирует средний цвет
+    3. Определяет тип оттенка (естественный/неестественный)
+    4. Применяет соответствующую коррекцию
+    """
+    # Конвертируем изображение в numpy массив для анализа
     img_np = np.array(face_region)
+    # Находим пиксели кожи: все каналы >60 для отсечения теней
     skin_mask = (img_np[:,:,0] > 60) & (img_np[:,:,1] > 60) & (img_np[:,:,2] > 60)
     if not np.any(skin_mask):
-        return face_region
+        return face_region  # Если кожа не найдена, возвращаем оригинал
     
+    # Вычисляем средний цвет кожи
     skin_pixels = img_np[skin_mask]
-    avg_color = np.mean(skin_pixels, axis=0)
+    avg_color = np.mean(skin_pixels, axis=0)  # [R,G,B]
     
-    # Проверяем на оранжевый оттенок от фар
-    is_headlight = is_headlight_orange(avg_color)
+    # Проверяем на неестественные оттенки:
+    is_headlight = is_headlight_orange(avg_color)  # Оранжевый от фар (#ff812f)
     
-    # Определяем другие неестественные оттенки
     r, g, b = avg_color
+    # R/B > 1.4 означает неестественно красный оттенок
     is_orange = r/b > 1.4 and g/b > 1.2
+    # G/B > 1.3 означает неестественно желтый оттенок
     is_yellow = r/b > 1.3 and g/b > 1.3
     
     if is_headlight or is_orange or is_yellow:
-        # Для неестественных оттенков просто возвращаем оригинал
+        # Для неестественных оттенков (подсветка фарами, вспышка)
+        # возвращаем оригинал без изменений, чтобы сохранить
+        # художественный замысел или эффект освещения
         return face_region
     
-    # Для естественных оттенков можем немного улучшить
+    # Для естественных оттенков кожи:
     enhanced = face_region.copy()
-    enhanced = ImageEnhance.Color(enhanced).enhance(1.05)  # Легкое усиление цвета
+    # Усиливаем насыщенность цвета на 5% для более здорового вида
+    enhanced = ImageEnhance.Color(enhanced).enhance(1.05)
     return enhanced
 
 def create_person_mask(image: Image.Image, face_data) -> Image.Image:
@@ -691,59 +708,75 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
         
     img = image.copy()
     
-    # Общее осветление для всего изображения
+    # ============================================================
+    # Этап 1: Базовое улучшение всего изображения
+    # ============================================================
+    # Применяем легкое осветление ко всему изображению для общего улучшения
     enhanced = img.copy()
-    enhanced = ImageEnhance.Brightness(enhanced).enhance(1.08)
+    enhanced = ImageEnhance.Brightness(enhanced).enhance(1.08)  # +8% яркости
     
-    # Проверяем цвет кожи
+    # ============================================================
+    # Этап 2: Анализ кожи для определения типа обработки
+    # ============================================================
+    # Извлекаем область лица для анализа
     x1, y1, x2, y2 = map(int, face_data.bbox)
     face_region = enhanced.crop((x1, y1, x2, y2))
+    
+    # Находим пиксели кожи (R>60, G>60, B>60)
     img_np = np.array(face_region)
     skin_pixels = img_np[(img_np[:,:,0] > 60) & (img_np[:,:,1] > 60) & (img_np[:,:,2] > 60)]
+    
+    # Определяем, является ли тон кожи неестественным
     if len(skin_pixels) > 0:
         avg_color = np.mean(skin_pixels, axis=0)
         is_unnatural = (
-            is_headlight_orange(avg_color) or 
-            avg_color[0]/avg_color[2] > 1.4 or 
-            avg_color[1]/avg_color[2] > 1.3
+            is_headlight_orange(avg_color) or      # Оранжевый от фар
+            avg_color[0]/avg_color[2] > 1.4 or     # Слишком красный
+            avg_color[1]/avg_color[2] > 1.3        # Слишком желтый
         )
     else:
         is_unnatural = False
 
+    # ============================================================
+    # Этап 3: Обработка в зависимости от типа сцены
+    # ============================================================
     if scene_type == "club":
-        # Специальная обработка для клубных фото
+        # Клубные фото: сильное шумоподавление + умеренное осветление
         enhanced = apply_premium_noise_reduction(enhanced, 'strong')
         
         if not is_unnatural:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)
-            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)  # +12% яркости
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.08)    # +6% контраста
         
     elif scene_type == "day":
-        # Для дневных фото
+        # Дневные фото: мягкое осветление + теплый оттенок
         if not is_unnatural:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.10)
-            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.05)
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)  # +10% яркости
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.10)    # +5% контраста
             
-            # Добавляем теплый оттенок
-            warm_overlay = Image.new("RGB", enhanced.size, (255, 240, 230))
-            enhanced = Image.blend(enhanced, warm_overlay, 0.05)
+            # Добавляем теплый оттенок для более здорового вида кожи
+            warm_overlay = Image.new("RGB", enhanced.size, (255, 240, 230))  # Теплый белый
+            enhanced = Image.blend(enhanced, warm_overlay, 0.10)  # 5% теплого оттенка
         
-    else:
-        # Для вечерних фото
+    else:  # evening
+        # Вечерние фото: шумоподавление + умеренное осветление + теплый оттенок
         enhanced = apply_premium_noise_reduction(enhanced, 'strong')
         
         if not is_unnatural:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)
-            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)  # +12% яркости
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)    # +6% контраста
             
-            # Добавляем теплый оттенок
-            warm_overlay = Image.new("RGB", enhanced.size, (255, 240, 230))
-            enhanced = Image.blend(enhanced, warm_overlay, 0.04)
+            # Добавляем теплый оттенок для компенсации холодного вечернего света
+            warm_overlay = Image.new("RGB", enhanced.size, (255, 240, 230))  # Теплый белый
+            enhanced = Image.blend(enhanced, warm_overlay, 0.08)  # 4% теплого оттенка
     
-    # Нормализация цвета кожи
+    # ============================================================
+    # Этап 4: Финальная обработка кожи
+    # ============================================================
+    # Применяем дополнительное улучшение к области лица
     face_region = enhanced.crop((x1, y1, x2, y2))
-    face_region = normalize_skin_tone(face_region)
-    enhanced.paste(face_region, (x1, y1))
+    face_region = normalize_skin_tone(face_region)  # Нормализация тона кожи
+    enhanced.paste(face_region, (x1, y1))          # Вставляем обработанное лицо обратно
     
     return enhanced
 
