@@ -546,50 +546,14 @@ def normalize_skin_tone(face_region: Image.Image) -> Image.Image:
     is_yellow = r/b > 1.3 and g/b > 1.3
     
     if is_headlight or is_orange or is_yellow:
-        enhanced = face_region.copy()
-        r, g, b = enhanced.split()
-        
-        if is_headlight:
-            # Более мягкая коррекция для оттенка от фар
-            target_r, target_g, target_b = 245, 225, 205
-            
-            # Вычисляем коэффициенты коррекции с ограничением
-            r_ratio = min(target_r / np.mean(avg_color[0]), 1.0)  # Не усиливаем красный
-            g_ratio = min(target_g / np.mean(avg_color[1]), 0.9)  # Уменьшаем зеленый
-            b_ratio = max(target_b / np.mean(avg_color[2]), 1.1)  # Минимально усиливаем синий
-            
-            # Применяем коррекцию плавно
-            r = r.point(lambda x: min(255, int(x * r_ratio * 0.9)))
-            g = g.point(lambda x: min(255, int(x * g_ratio * 0.95)))
-            b = b.point(lambda x: min(255, int(x * b_ratio * 1.15)))
-            
-        elif is_orange:
-            r = r.point(lambda x: int(x * 0.8))
-            g = g.point(lambda x: int(x * 0.9))
-            b = b.point(lambda x: min(255, int(x * 1.2)))
-        else:  # is_yellow
-            r = r.point(lambda x: int(x * 0.85))
-            g = g.point(lambda x: int(x * 0.85))
-            b = b.point(lambda x: min(255, int(x * 1.15)))
-        
-        enhanced = Image.merge('RGB', (r, g, b))
-        
-        # Создаем естественный цвет кожи
-        natural_tone = Image.new('RGB', face_region.size, 
-                               (245, 225, 205) if is_headlight else (235, 225, 220))
-        
-        # Создаем маску для плавного перехода
-        mask = Image.new('L', face_region.size, 0)
-        draw = ImageDraw.Draw(mask)
-        draw.ellipse([0, 0, face_region.width, face_region.height], fill=180)
-        mask = mask.filter(ImageFilter.GaussianBlur(radius=face_region.width//6))
-        
-        # Более мягкое смешивание для оттенка от фар
-        blend_strength = 0.35 if is_headlight else 0.4
-        enhanced = Image.blend(enhanced, natural_tone, blend_strength)
-        return Image.composite(enhanced, face_region, mask)
+        # Для неестественных оттенков просто возвращаем оригинал
+        # без дополнительного усиления цвета
+        return face_region
     
-    return face_region
+    # Для естественных оттенков можем немного улучшить
+    enhanced = face_region.copy()
+    enhanced = ImageEnhance.Color(enhanced).enhance(1.05)  # Легкое усиление цвета
+    return enhanced
 
 def create_person_mask(image: Image.Image, face_data) -> Image.Image:
     """Создание маски для области человека (голова, тело, волосы)."""
@@ -700,8 +664,21 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
     enhanced = img.copy()
     x1, y1, x2, y2 = map(int, face_data.bbox)
     
+    # Проверяем цвет кожи перед улучшением
+    face_region = enhanced.crop((x1, y1, x2, y2))
+    img_np = np.array(face_region)
+    skin_pixels = img_np[(img_np[:,:,0] > 60) & (img_np[:,:,1] > 60) & (img_np[:,:,2] > 60)]
+    if len(skin_pixels) > 0:
+        avg_color = np.mean(skin_pixels, axis=0)
+        is_unnatural = (
+            is_headlight_orange(avg_color) or 
+            avg_color[0]/avg_color[2] > 1.4 or 
+            avg_color[1]/avg_color[2] > 1.3
+        )
+    else:
+        is_unnatural = False
+    
     # Базовое освещение для всех сценариев
-    # Создаем маску освещения для области лица и тела
     light_mask = Image.new('L', enhanced.size, 0)
     draw = ImageDraw.Draw(light_mask)
     
@@ -718,15 +695,15 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
     
     # Основное освещение лица и тела
     for r in range(int(main_radius * 2)):
-        opacity = int(255 * (1 - (r / (main_radius * 2)) ** 1.5))  # Более плавное затухание
+        opacity = int(255 * (1 - (r / (main_radius * 2)) ** 1.5))
         if opacity > 0:
             draw.ellipse([
-                center_x - r, center_y - r * 1.2,  # Растягиваем по вертикали
-                center_x + r, center_y + r * 1.5    # Увеличиваем вниз для тела
+                center_x - r, center_y - r * 1.2,
+                center_x + r, center_y + r * 1.5
             ], fill=opacity)
     
     # Дополнительное освещение для волос
-    hair_y = y1 - face_height * 0.3  # Поднимаемся выше для захвата волос
+    hair_y = y1 - face_height * 0.3
     hair_radius = face_width * 0.8
     for r in range(int(hair_radius * 2)):
         opacity = int(180 * (1 - (r / (hair_radius * 2)) ** 1.2))
@@ -740,29 +717,37 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
     light_mask = light_mask.filter(ImageFilter.GaussianBlur(radius=face_width//6))
     
     if scene_type == "day":
-        # Для дневных фото - мягкое освещение
-        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.06)
-        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.04)
+        # Для дневных фото - усиленное освещение
+        if not is_unnatural:
+            # Усиливаем только если цвет естественный
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.05)
+            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.15)
+        else:
+            # Минимальное улучшение для неестественных оттенков
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.04)
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.03)
+            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.06)
         
-        # Версия с дополнительным освещением
-        extra_light = ImageEnhance.Brightness(enhanced).enhance(1.08)
         enhanced = Image.composite(extra_light, enhanced, light_mask)
         
     else:
-        # Для вечерних/ночных фото
-        # Сначала применяем премиум шумоподавление
+        # Для вечерних/ночных фото - оставляем как есть
         enhanced = apply_premium_noise_reduction(enhanced, 'strong')
         
-        # Базовое улучшение
-        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)
-        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)
+        if not is_unnatural:
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)
+            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.2)
+        else:
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.08)
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.03)
+            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.1)
         
-        # Версия с усиленным освещением
-        extra_light = ImageEnhance.Brightness(enhanced).enhance(1.2)
         enhanced = Image.composite(extra_light, enhanced, light_mask)
     
     # Нормализация цвета кожи с расширенной областью
-    face_padding = int(face_width * 0.2)  # Увеличиваем область обработки
+    face_padding = int(face_width * 0.2)
     face_x1 = max(0, x1 - face_padding)
     face_y1 = max(0, y1 - face_padding)
     face_x2 = min(enhanced.width, x2 + face_padding)
