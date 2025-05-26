@@ -545,14 +545,24 @@ def normalize_skin_tone(face_region: Image.Image) -> Image.Image:
     is_orange = r/b > 1.4 and g/b > 1.2
     is_yellow = r/b > 1.3 and g/b > 1.3
     
-    if is_headlight or is_orange or is_yellow:
-        # Для неестественных оттенков просто возвращаем оригинал
-        # без дополнительного усиления цвета
-        return face_region
-    
-    # Для естественных оттенков можем немного улучшить
     enhanced = face_region.copy()
-    enhanced = ImageEnhance.Color(enhanced).enhance(1.05)  # Легкое усиление цвета
+    
+    if is_headlight or is_orange or is_yellow:
+        # Для неестественных оттенков - мягкая коррекция
+        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.08)
+        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.04)
+    else:
+        # Для естественных оттенков - более заметное улучшение
+        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)
+        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)
+        
+        # Добавляем теплый оттенок
+        warm_overlay = Image.new("RGB", enhanced.size, (255, 240, 230))
+        enhanced = Image.blend(enhanced, warm_overlay, 0.06)
+        
+        # Улучшаем текстуру кожи
+        enhanced = enhanced.filter(ImageFilter.UnsharpMask(radius=0.8, percent=80, threshold=3))
+    
     return enhanced
 
 def create_person_mask(image: Image.Image, face_data) -> Image.Image:
@@ -650,6 +660,41 @@ def apply_premium_noise_reduction(image: Image.Image, strength: str = 'normal') 
         # Стандартное шумоподавление для обычных фото
         return apply_advanced_noise_reduction(img, 'normal')
 
+def detect_scene_type(image: Image.Image) -> str:
+    """Определение типа сцены на фотографии."""
+    img_np = np.array(image)
+    
+    # Анализируем общую яркость
+    brightness = np.mean(img_np)
+    
+    # Анализируем цветовые каналы
+    r, g, b = image.split()
+    r_mean = np.mean(np.array(r))
+    g_mean = np.mean(np.array(g))
+    b_mean = np.mean(np.array(b))
+    
+    # Определяем цвет освещения
+    light_color = detect_light_source_color(image)
+    has_colored_light = max(light_color) / (min(light_color) + 0.01) > 1.3
+    
+    # Проверяем наличие цветного освещения (клубное)
+    is_club = (
+        (b_mean > (r_mean + g_mean) / 2 + 15) or  # Синее освещение
+        (r_mean > (g_mean + b_mean) / 2 + 15) or  # Красное освещение
+        (brightness < 90 and has_colored_light)    # Темно с цветным светом
+    )
+    
+    # Проверяем равномерность освещения
+    std_dev = np.std(img_np)
+    is_uniform = std_dev < 50
+    
+    if is_club:
+        return "club"
+    elif brightness > 160 and is_uniform:
+        return "daylight"
+    else:
+        return "evening"
+
 def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day") -> Image.Image:
     """Улучшение только области человека."""
     if not face_data:
@@ -677,12 +722,91 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
         )
     else:
         is_unnatural = False
-    
+
     # Базовое освещение для всех сценариев
-    light_mask = Image.new('L', enhanced.size, 0)
+    light_mask = create_lighting_mask(enhanced.size, x1, y1, x2, y2)
+    
+    if scene_type == "club":
+        # Специальная обработка для клубных фото
+        enhanced = apply_premium_noise_reduction(enhanced, 'strong')
+        
+        if not is_unnatural:
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.22)
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.10)
+            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.30)
+        else:
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)
+            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.20)
+        
+        # Сохраняем цветовую атмосферу
+        enhanced = Image.composite(extra_light, enhanced, light_mask)
+        
+    elif scene_type == "day":
+        # Для дневных фото - усиленное освещение
+        if not is_unnatural:
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.18)
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.08)
+            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.25)
+            
+            # Добавляем теплый оттенок
+            warm_overlay = Image.new("RGB", enhanced.size, (255, 240, 230))
+            enhanced = Image.blend(enhanced, warm_overlay, 0.08)
+        else:
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.05)
+            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.15)
+        
+        enhanced = Image.composite(extra_light, enhanced, light_mask)
+        
+    else:
+        # Для вечерних фото
+        enhanced = apply_premium_noise_reduction(enhanced, 'strong')
+        
+        if not is_unnatural:
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.20)
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.08)
+            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.28)
+            
+            # Добавляем теплый оттенок
+            warm_overlay = Image.new("RGB", enhanced.size, (255, 240, 230))
+            enhanced = Image.blend(enhanced, warm_overlay, 0.07)
+        else:
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.05)
+            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.20)
+        
+        enhanced = Image.composite(extra_light, enhanced, light_mask)
+    
+    # Нормализация цвета кожи с расширенной областью
+    face_padding = int((x2 - x1) * 0.2)
+    face_x1 = max(0, x1 - face_padding)
+    face_y1 = max(0, y1 - face_padding)
+    face_x2 = min(enhanced.width, x2 + face_padding)
+    face_y2 = min(enhanced.height, y2 + face_padding)
+    
+    face_region = enhanced.crop((face_x1, face_y1, face_x2, face_y2))
+    face_region = normalize_skin_tone(face_region)
+    
+    # Дополнительное улучшение текстуры
+    if scene_type != "club":
+        face_region = face_region.filter(ImageFilter.UnsharpMask(radius=0.8, percent=80, threshold=3))
+    
+    enhanced.paste(face_region, (face_x1, face_y1))
+    
+    # Финальное смешивание
+    result = Image.composite(enhanced, img, person_mask)
+    
+    # Финальное улучшение контраста
+    result = ImageEnhance.Contrast(result).enhance(1.05)
+    
+    return result
+
+def create_lighting_mask(size, x1, y1, x2, y2):
+    """Создание маски освещения для лица и тела."""
+    light_mask = Image.new('L', size, 0)
     draw = ImageDraw.Draw(light_mask)
     
-    # Расширяем область для захвата волос и тела
     face_width = x2 - x1
     face_height = y2 - y1
     
@@ -714,53 +838,7 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
             ], fill=opacity)
     
     # Размываем маску для плавности
-    light_mask = light_mask.filter(ImageFilter.GaussianBlur(radius=face_width//6))
-    
-    if scene_type == "day":
-        # Для дневных фото - усиленное освещение
-        if not is_unnatural:
-            # Усиливаем только если цвет естественный
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)
-            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.05)
-            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.15)
-        else:
-            # Минимальное улучшение для неестественных оттенков
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.04)
-            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.03)
-            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.06)
-        
-        enhanced = Image.composite(extra_light, enhanced, light_mask)
-        
-    else:
-        # Для вечерних/ночных фото - оставляем как есть
-        enhanced = apply_premium_noise_reduction(enhanced, 'strong')
-        
-        if not is_unnatural:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)
-            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)
-            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.2)
-        else:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.08)
-            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.03)
-            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.1)
-        
-        enhanced = Image.composite(extra_light, enhanced, light_mask)
-    
-    # Нормализация цвета кожи с расширенной областью
-    face_padding = int(face_width * 0.2)
-    face_x1 = max(0, x1 - face_padding)
-    face_y1 = max(0, y1 - face_padding)
-    face_x2 = min(enhanced.width, x2 + face_padding)
-    face_y2 = min(enhanced.height, y2 + face_padding)
-    
-    face_region = enhanced.crop((face_x1, face_y1, face_x2, face_y2))
-    face_region = normalize_skin_tone(face_region)
-    enhanced.paste(face_region, (face_x1, face_y1))
-    
-    # Финальное смешивание
-    result = Image.composite(enhanced, img, person_mask)
-    
-    return result
+    return light_mask.filter(ImageFilter.GaussianBlur(radius=face_width//6))
 
 def apply_daylight_enhancement(image: Image.Image, face_data) -> Image.Image:
     """Улучшение фотографии при дневном освещении."""
@@ -769,37 +847,6 @@ def apply_daylight_enhancement(image: Image.Image, face_data) -> Image.Image:
 def apply_evening_enhancement(image: Image.Image, face_data) -> Image.Image:
     """Улучшение фотографии при вечернем/искусственном освещении."""
     return enhance_person_region(image, face_data, "evening")
-
-def detect_scene_type(image: Image.Image) -> str:
-    """Определение типа сцены на фотографии."""
-    img_np = np.array(image)
-    
-    # Анализируем общую яркость
-    brightness = np.mean(img_np)
-    
-    # Анализируем цветовые каналы
-    r, g, b = image.split()
-    r_mean = np.mean(np.array(r))
-    g_mean = np.mean(np.array(g))
-    b_mean = np.mean(np.array(b))
-    
-    # Определяем цвет освещения
-    light_color = detect_light_source_color(image)
-    has_colored_light = max(light_color) / (min(light_color) + 0.01) > 1.3
-    
-    # Проверяем наличие синего/фиолетового освещения (клубное)
-    is_club = b_mean > (r_mean + g_mean) / 2 + 15
-    
-    # Проверяем равномерность освещения
-    std_dev = np.std(img_np)
-    is_uniform = std_dev < 50
-    
-    if is_club or (brightness < 90 and has_colored_light):
-        return "club"
-    elif brightness > 160 and is_uniform:
-        return "daylight"
-    else:
-        return "evening"
 
 # =============================================================================
 # Основные функции обработки
