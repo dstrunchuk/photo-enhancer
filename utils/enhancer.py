@@ -693,11 +693,7 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
     
     # Общее осветление для всего изображения
     enhanced = img.copy()
-    enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)  # Увеличили с 1.08 до 1.12
-    
-    # Добавляем теплый молочный оттенок для всего изображения
-    warm_overlay = Image.new("RGB", enhanced.size, (255, 248, 240))  # Очень светлый теплый оттенок
-    enhanced = Image.blend(enhanced, warm_overlay, 0.06)
+    enhanced = ImageEnhance.Brightness(enhanced).enhance(1.08)
     
     # Проверяем цвет кожи
     x1, y1, x2, y2 = map(int, face_data.bbox)
@@ -719,30 +715,30 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
         enhanced = apply_premium_noise_reduction(enhanced, 'strong')
         
         if not is_unnatural:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)  # Увеличили с 1.12 до 1.15
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)
             enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)
         
     elif scene_type == "day":
         # Для дневных фото
         if not is_unnatural:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.13)  # Увеличили с 1.10 до 1.13
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.10)
             enhanced = ImageEnhance.Contrast(enhanced).enhance(1.05)
             
-            # Добавляем дополнительный теплый оттенок
-            warm_overlay = Image.new("RGB", enhanced.size, (255, 245, 235))
-            enhanced = Image.blend(enhanced, warm_overlay, 0.06)
+            # Добавляем теплый оттенок
+            warm_overlay = Image.new("RGB", enhanced.size, (255, 240, 230))
+            enhanced = Image.blend(enhanced, warm_overlay, 0.05)
         
     else:
         # Для вечерних фото
         enhanced = apply_premium_noise_reduction(enhanced, 'strong')
         
         if not is_unnatural:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)  # Увеличили с 1.12 до 1.15
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)
             enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)
             
             # Добавляем теплый оттенок
-            warm_overlay = Image.new("RGB", enhanced.size, (255, 245, 235))
-            enhanced = Image.blend(enhanced, warm_overlay, 0.05)
+            warm_overlay = Image.new("RGB", enhanced.size, (255, 240, 230))
+            enhanced = Image.blend(enhanced, warm_overlay, 0.04)
     
     # Нормализация цвета кожи
     face_region = enhanced.crop((x1, y1, x2, y2))
