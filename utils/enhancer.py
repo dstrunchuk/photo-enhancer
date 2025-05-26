@@ -5,7 +5,7 @@ import replicate
 import requests
 import zipfile
 import os
-from PIL import Image, ImageOps, ImageEnhance, ImageFilter, ImageDraw
+from PIL import Image, ImageOps, ImageEnhance, ImageFilter, ImageDraw, ImageChops
 import io
 import numpy as np
 import uuid
@@ -397,7 +397,7 @@ def detect_light_source_color(image: Image.Image) -> tuple:
     img_np = np.array(image)
     # Находим самые яркие области
     gray = np.mean(img_np, axis=2)
-    bright_mask = gray > np.percentile(gray, 92)  # Уменьшаем порог для лучшего определения
+    bright_mask = gray > np.percentile(gray, 90)  # Еще больше снижаем порог
     if not np.any(bright_mask):
         return (1.0, 1.0, 1.0)
     
@@ -405,12 +405,12 @@ def detect_light_source_color(image: Image.Image) -> tuple:
     bright_colors = img_np[bright_mask]
     avg_color = np.mean(bright_colors, axis=0) / 255.0
     
-    # Определяем, является ли источник света желтым
+    # Более агрессивное определение желтого света
     r, g, b = avg_color
-    is_yellow = (r > 0.6 and g > 0.6 and b < 0.5)
+    is_yellow = (r > 0.5 and g > 0.5 and b < 0.45) or (r/b > 1.4 and g/b > 1.4)
     if is_yellow:
         # Усиливаем компенсацию для желтого света
-        return (r * 0.9, g * 0.85, b * 1.2)
+        return (r * 0.85, g * 0.80, b * 1.3)
     
     return tuple(avg_color)
 
@@ -445,38 +445,67 @@ def compensate_light_color(image: Image.Image, face_data) -> Image.Image:
         return Image.merge('RGB', (r, g, b))
     return image
 
-def apply_advanced_noise_reduction(image: Image.Image) -> Image.Image:
+def apply_advanced_noise_reduction(image: Image.Image, strength: str = 'normal') -> Image.Image:
     """Продвинутое шумоподавление с сохранением деталей."""
-    # Начальное шумоподавление
-    img = image.filter(ImageFilter.MedianFilter(size=3))
+    img = image.copy()
     
-    # Создаем размытую версию для выделения шума
-    blurred = img.filter(ImageFilter.GaussianBlur(radius=1.0))
+    # Параметры в зависимости от силы шумоподавления
+    if strength == 'strong':
+        # Начальное сильное шумоподавление
+        img = img.filter(ImageFilter.MedianFilter(size=3))
+        img = img.filter(ImageFilter.GaussianBlur(radius=0.8))
+        
+        # Создаем несколько размытых версий
+        blur1 = img.filter(ImageFilter.GaussianBlur(radius=1.2))
+        blur2 = img.filter(ImageFilter.GaussianBlur(radius=0.6))
+        
+        # Находим края
+        edge_mask = img.filter(ImageFilter.FIND_EDGES)
+        edge_mask = edge_mask.convert('L')
+        edge_mask = edge_mask.point(lambda x: 255 if x > 15 else 0)
+        edge_mask = edge_mask.filter(ImageFilter.GaussianBlur(radius=0.8))
+        
+        # Создаем маску деталей
+        detail_mask = img.filter(ImageFilter.DETAIL)
+        detail_mask = detail_mask.convert('L')
+        detail_mask = detail_mask.point(lambda x: 255 if x > 10 else 0)
+        
+        # Комбинируем маски
+        final_mask = ImageChops.lighter(edge_mask, detail_mask)
+        final_mask = final_mask.filter(ImageFilter.GaussianBlur(radius=0.8))
+        
+        # Смешиваем версии
+        result = Image.composite(img, blur1, final_mask)
+        result = Image.composite(result, blur2, edge_mask)
+    else:
+        # Стандартное шумоподавление
+        img = img.filter(ImageFilter.MedianFilter(size=3))
+        blurred = img.filter(ImageFilter.GaussianBlur(radius=0.8))
+        
+        edge_mask = img.filter(ImageFilter.FIND_EDGES)
+        edge_mask = edge_mask.convert('L')
+        edge_mask = edge_mask.point(lambda x: 255 if x > 20 else 0)
+        edge_mask = edge_mask.filter(ImageFilter.GaussianBlur(radius=0.8))
+        
+        result = Image.composite(img, blurred, edge_mask)
     
-    # Создаем маску краев
-    edge_mask = img.filter(ImageFilter.FIND_EDGES)
-    edge_mask = edge_mask.convert('L')
-    edge_mask = edge_mask.point(lambda x: 255 if x > 20 else 0)
-    edge_mask = edge_mask.filter(ImageFilter.GaussianBlur(radius=1))
-    
-    # Смешиваем оригинал и размытую версию с учетом краев
-    return Image.composite(img, blurred, ImageOps.invert(edge_mask))
+    return result
 
 def apply_daylight_enhancement(image: Image.Image, face_data) -> Image.Image:
     """Улучшение фотографии при дневном освещении (селфи)."""
     img = image.copy()
     
-    # Более консервативные параметры общей обработки
-    img = ImageEnhance.Brightness(img).enhance(1.02)  # Минимальное повышение яркости
-    img = ImageEnhance.Contrast(img).enhance(1.05)    # Легкий контраст
-    img = ImageEnhance.Color(img).enhance(1.04)       # Минимальное насыщение
+    # Минимальные параметры общей обработки
+    img = ImageEnhance.Brightness(img).enhance(1.01)  # Почти не трогаем яркость
+    img = ImageEnhance.Contrast(img).enhance(1.03)    # Минимальный контраст
+    img = ImageEnhance.Color(img).enhance(1.02)       # Минимальное насыщение
     
     if face_data:
         x1, y1, x2, y2 = map(int, face_data.bbox)
         
-        # Уменьшаем область обработки
-        padding_x = int((x2 - x1) * 0.12)
-        padding_y = int((y2 - y1) * 0.12)
+        # Еще меньше область обработки
+        padding_x = int((x2 - x1) * 0.08)
+        padding_y = int((y2 - y1) * 0.08)
         
         face_x1 = max(0, x1 - padding_x)
         face_y1 = max(0, y1 - padding_y)
@@ -485,32 +514,32 @@ def apply_daylight_enhancement(image: Image.Image, face_data) -> Image.Image:
         
         face_region = img.crop((face_x1, face_y1, face_x2, face_y2))
         
-        # Улучшение лица
-        face_region = ImageEnhance.Brightness(face_region).enhance(1.06)
-        face_region = ImageEnhance.Contrast(face_region).enhance(1.08)
+        # Очень мягкое улучшение лица
+        face_region = ImageEnhance.Brightness(face_region).enhance(1.04)
+        face_region = ImageEnhance.Contrast(face_region).enhance(1.05)
         
-        # Создаем маску для лица с очень плавным переходом
+        # Маска с очень плавным переходом
         skin_mask = Image.new('L', face_region.size, 0)
         draw = ImageDraw.Draw(skin_mask)
-        draw.ellipse([0, 0, face_region.width, face_region.height], fill=180)
-        skin_mask = skin_mask.filter(ImageFilter.GaussianBlur(radius=padding_x//2))
+        draw.ellipse([0, 0, face_region.width, face_region.height], fill=160)
+        skin_mask = skin_mask.filter(ImageFilter.GaussianBlur(radius=padding_x))
         
         # Смешиваем с оригиналом
         img.paste(face_region, (face_x1, face_y1))
         
         # Минимальное размытие фона
-        background_blur = img.filter(ImageFilter.GaussianBlur(radius=1.0))
+        background_blur = img.filter(ImageFilter.GaussianBlur(radius=0.8))
         
-        # Создаем маску для фона с большим радиусом размытия
+        # Маска для фона с очень плавным переходом
         background_mask = Image.new('L', img.size, 0)
         draw = ImageDraw.Draw(background_mask)
         draw.ellipse([
-            face_x1 - padding_x,
-            face_y1 - padding_y,
-            face_x2 + padding_x,
-            face_y2 + padding_y
-        ], fill=200)
-        background_mask = background_mask.filter(ImageFilter.GaussianBlur(radius=padding_x*2))
+            face_x1 - padding_x*2,
+            face_y1 - padding_y*2,
+            face_x2 + padding_x*2,
+            face_y2 + padding_y*2
+        ], fill=180)
+        background_mask = background_mask.filter(ImageFilter.GaussianBlur(radius=padding_x*3))
         
         # Смешиваем с фоном
         img = Image.composite(img, background_blur, background_mask)
@@ -524,19 +553,19 @@ def apply_evening_enhancement(image: Image.Image, face_data) -> Image.Image:
     # Компенсация цветового оттенка освещения
     img = compensate_light_color(img, face_data)
     
-    # Продвинутое шумоподавление
-    img = apply_advanced_noise_reduction(img)
+    # Усиленное шумоподавление
+    img = apply_advanced_noise_reduction(img, 'strong')
     
-    # Базовое улучшение
-    img = ImageEnhance.Brightness(img).enhance(1.12)
-    img = ImageEnhance.Contrast(img).enhance(1.06)
-    img = ImageEnhance.Color(img).enhance(1.08)
+    # Очень мягкое базовое улучшение
+    img = ImageEnhance.Brightness(img).enhance(1.10)
+    img = ImageEnhance.Contrast(img).enhance(1.04)
+    img = ImageEnhance.Color(img).enhance(1.06)
     
     if face_data:
         x1, y1, x2, y2 = map(int, face_data.bbox)
         
-        padding_x = int((x2 - x1) * 0.2)
-        padding_y = int((y2 - y1) * 0.2)
+        padding_x = int((x2 - x1) * 0.15)
+        padding_y = int((y2 - y1) * 0.15)
         
         face_x1 = max(0, x1 - padding_x)
         face_y1 = max(0, y1 - padding_y)
@@ -546,46 +575,46 @@ def apply_evening_enhancement(image: Image.Image, face_data) -> Image.Image:
         face_region = img.crop((face_x1, face_y1, face_x2, face_y2))
         
         # Дополнительное шумоподавление для лица
-        face_region = apply_advanced_noise_reduction(face_region)
+        face_region = apply_advanced_noise_reduction(face_region, 'strong')
         
-        # Создаем маску для кожи с плавным переходом
+        # Маска с плавным переходом
         skin_mask = Image.new('L', face_region.size, 0)
         draw = ImageDraw.Draw(skin_mask)
-        draw.ellipse([0, 0, face_region.width, face_region.height], fill=200)
-        skin_mask = skin_mask.filter(ImageFilter.GaussianBlur(radius=padding_x//2))
+        draw.ellipse([0, 0, face_region.width, face_region.height], fill=180)
+        skin_mask = skin_mask.filter(ImageFilter.GaussianBlur(radius=padding_x))
         
-        # Улучшаем кожу с балансом цветов
+        # Улучшаем кожу с минимальным усилением цвета
         enhanced_skin = face_region.copy()
-        enhanced_skin = ImageEnhance.Brightness(enhanced_skin).enhance(1.15)
-        enhanced_skin = ImageEnhance.Color(enhanced_skin).enhance(1.08)
+        enhanced_skin = ImageEnhance.Brightness(enhanced_skin).enhance(1.12)
+        enhanced_skin = ImageEnhance.Color(enhanced_skin).enhance(1.05)
         
-        # Корректируем цветовой баланс кожи
+        # Очень осторожная коррекция цвета кожи
         r, g, b = enhanced_skin.split()
-        r = r.point(lambda x: min(255, int(x * 1.02)))  # Минимальное усиление красного
-        g = g.point(lambda x: min(255, int(x * 0.96)))  # Уменьшаем зеленый
-        b = b.point(lambda x: min(255, int(x * 0.98)))  # Слегка уменьшаем синий
+        r = r.point(lambda x: min(255, int(x * 1.01)))  # Минимальное усиление красного
+        g = g.point(lambda x: min(255, int(x * 0.95)))  # Уменьшаем зеленый
+        b = b.point(lambda x: min(255, int(x * 0.99)))  # Почти не трогаем синий
         enhanced_skin = Image.merge('RGB', (r, g, b))
         
-        # Добавляем мягкое повышение резкости
-        enhanced_skin = enhanced_skin.filter(ImageFilter.UnsharpMask(radius=1.0, percent=110, threshold=5))
+        # Очень мягкое повышение резкости
+        enhanced_skin = enhanced_skin.filter(ImageFilter.UnsharpMask(radius=0.8, percent=105, threshold=5))
         
         # Смешиваем с оригиналом
         face_region = Image.composite(enhanced_skin, face_region, skin_mask)
         img.paste(face_region, (face_x1, face_y1))
         
-        # Создаем маску для фона
+        # Маска для фона
         background_mask = Image.new('L', img.size, 0)
         draw = ImageDraw.Draw(background_mask)
         draw.ellipse([
-            face_x1 - padding_x,
-            face_y1 - padding_y,
-            face_x2 + padding_x,
-            face_y2 + padding_y
-        ], fill=220)
-        background_mask = background_mask.filter(ImageFilter.GaussianBlur(radius=padding_x*2))
+            face_x1 - padding_x*2,
+            face_y1 - padding_y*2,
+            face_x2 + padding_x*2,
+            face_y2 + padding_y*2
+        ], fill=200)
+        background_mask = background_mask.filter(ImageFilter.GaussianBlur(radius=padding_x*3))
         
         # Создаем размытый фон
-        background_blur = img.filter(ImageFilter.GaussianBlur(radius=1.5))
+        background_blur = img.filter(ImageFilter.GaussianBlur(radius=1.2))
         img = Image.composite(img, background_blur, background_mask)
     
     return img
