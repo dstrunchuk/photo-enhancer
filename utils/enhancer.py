@@ -525,81 +525,6 @@ def enhance_skin_and_hair(region: Image.Image, strength: float = 1.0) -> Image.I
     
     return enhanced
 
-def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day") -> Image.Image:
-    """Улучшение только области человека."""
-    if not face_data:
-        return image
-        
-    img = image.copy()
-    person_mask = create_person_mask(img, face_data)
-    if person_mask is None:
-        return img
-        
-    # Проверяем наличие света фар
-    x1, y1, x2, y2 = map(int, face_data.bbox)
-    face_region = img.crop((x1, y1, x2, y2))
-    img_np = np.array(face_region)
-    skin_mask = (img_np[:,:,0] > 60) & (img_np[:,:,1] > 60) & (img_np[:,:,2] > 60)
-    if np.any(skin_mask):
-        skin_pixels = img_np[skin_mask]
-        avg_color = np.mean(skin_pixels, axis=0)
-        r, g, b = avg_color
-        is_car_light = (r/b > 1.4 or g/b > 1.4) and (r + g)/(2*b) > 1.3
-    else:
-        is_car_light = False
-
-    # Определяем силу эффекта в зависимости от сцены
-    if scene_type == "day" and not is_car_light:
-        effect_strength = 1.0
-    elif scene_type == "day" and is_car_light:
-        effect_strength = 0.6
-    elif scene_type == "evening" and not is_car_light:
-        effect_strength = 1.2
-    else:  # evening with car lights
-        effect_strength = 0.7
-
-    # Создаем улучшенную версию всей области человека
-    width, height = img.size
-    person_area = img.crop((
-        max(0, x1 - (x2-x1)),
-        max(0, y1 - (y2-y1)),
-        min(width, x2 + (x2-x1)),
-        min(height, y2 + (y2-y1)*2)
-    ))
-    
-    # Применяем улучшение к области человека
-    enhanced_person = enhance_skin_and_hair(person_area, effect_strength)
-    
-    if scene_type == "evening":
-        enhanced_person = apply_advanced_noise_reduction(enhanced_person, 'strong')
-    
-    # Создаем маску для плавного перехода
-    transition_mask = Image.new('L', person_area.size, 0)
-    draw = ImageDraw.Draw(transition_mask)
-    
-    # Рисуем градиентную маску
-    person_width, person_height = person_area.size
-    draw.ellipse([
-        person_width*0.1, person_height*0.1,
-        person_width*0.9, person_height*0.9
-    ], fill=255)
-    transition_mask = transition_mask.filter(ImageFilter.GaussianBlur(radius=person_width//10))
-    
-    # Смешиваем улучшенную область с оригиналом
-    result = Image.composite(enhanced_person, person_area, transition_mask)
-    
-    # Вставляем обратно в изображение
-    img.paste(result, (
-        max(0, x1 - (x2-x1)),
-        max(0, y1 - (y2-y1))
-    ))
-    
-    # Добавляем финальное свечение
-    if not is_car_light:
-        img = apply_natural_glow(img)
-    
-    return img
-
 def normalize_skin_tone(face_region: Image.Image) -> Image.Image:
     """Нормализация цвета кожи к естественному теплому белому."""
     # Анализируем текущий цвет кожи
@@ -618,18 +543,84 @@ def normalize_skin_tone(face_region: Image.Image) -> Image.Image:
     if is_car_light:
         # Для света фар - просто предотвращаем усиление цвета
         enhanced = face_region.copy()
+        r, g, b = enhanced.split()
+        
+        # Слегка уменьшаем насыщенность цвета
         enhanced = ImageEnhance.Color(enhanced).enhance(0.95)
+        
+        # Маска для плавного перехода
+        mask = Image.new('L', face_region.size, 0)
+        draw = ImageDraw.Draw(mask)
+        draw.ellipse([0, 0, face_region.width, face_region.height], fill=180)
+        mask = mask.filter(ImageFilter.GaussianBlur(radius=face_region.width//8))
+        
+        return Image.composite(enhanced, face_region, mask)
+    
+    return face_region
+
+def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day") -> Image.Image:
+    """Улучшение только области человека."""
+    if not face_data:
+        return image
+        
+    img = image.copy()
+    person_mask = create_person_mask(img, face_data)
+    if person_mask is None:
+        return img
+        
+    # Создаем улучшенную версию
+    enhanced = img.copy()
+    
+    # Проверяем наличие света фар
+    x1, y1, x2, y2 = map(int, face_data.bbox)
+    face_region = img.crop((x1, y1, x2, y2))
+    img_np = np.array(face_region)
+    skin_mask = (img_np[:,:,0] > 60) & (img_np[:,:,1] > 60) & (img_np[:,:,2] > 60)
+    if np.any(skin_mask):
+        skin_pixels = img_np[skin_mask]
+        avg_color = np.mean(skin_pixels, axis=0)
+        r, g, b = avg_color
+        is_car_light = (r/b > 1.4 or g/b > 1.4) and (r + g)/(2*b) > 1.3
     else:
-        # Для обычного освещения - добавляем красивое свечение
-        enhanced = enhance_skin_and_hair(face_region, 1.1)
+        is_car_light = False
     
-    # Маска для плавного перехода
-    mask = Image.new('L', face_region.size, 0)
-    draw = ImageDraw.Draw(mask)
-    draw.ellipse([0, 0, face_region.width, face_region.height], fill=180)
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=face_region.width//8))
+    if scene_type == "day" and not is_car_light:
+        # Для дневных фото без света фар - обычные улучшения
+        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.05)
+        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.03)
+        enhanced = ImageEnhance.Color(enhanced).enhance(1.15)  # Добавляем красочность
+    elif scene_type == "day" and is_car_light:
+        # Для дневных фото со светом фар - минимальные улучшения
+        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.02)
+        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.01)
+        enhanced = ImageEnhance.Color(enhanced).enhance(1.08)  # Легкая красочность
+    elif scene_type == "evening" and not is_car_light:
+        # Для вечерних фото без света фар
+        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)
+        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.05)
+        enhanced = ImageEnhance.Color(enhanced).enhance(1.2)   # Больше красочности для вечера
+        enhanced = apply_advanced_noise_reduction(enhanced, 'strong')
+    else:
+        # Для вечерних фото со светом фар
+        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.05)
+        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.02)
+        enhanced = ImageEnhance.Color(enhanced).enhance(1.1)   # Умеренная красочность
+        enhanced = apply_advanced_noise_reduction(enhanced, 'strong')
     
-    return Image.composite(enhanced, face_region, mask)
+    # Добавляем теплоту в тени для более живого изображения
+    if not is_car_light:
+        warm_overlay = Image.new('RGB', enhanced.size, (255, 240, 230))
+        enhanced = Image.blend(enhanced, warm_overlay, 0.05)
+    
+    # Нормализация цвета кожи
+    face_region = enhanced.crop((x1, y1, x2, y2))
+    face_region = normalize_skin_tone(face_region)
+    enhanced.paste(face_region, (x1, y1))
+    
+    # Применяем улучшения только к области человека
+    result = Image.composite(enhanced, img, person_mask)
+    
+    return result
 
 def create_person_mask(image: Image.Image, face_data) -> Image.Image:
     """Создание маски для области человека (голова, тело, волосы)."""
