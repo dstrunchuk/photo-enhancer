@@ -545,24 +545,13 @@ def normalize_skin_tone(face_region: Image.Image) -> Image.Image:
     is_orange = r/b > 1.4 and g/b > 1.2
     is_yellow = r/b > 1.3 and g/b > 1.3
     
-    enhanced = face_region.copy()
-    
     if is_headlight or is_orange or is_yellow:
-        # Для неестественных оттенков - мягкая коррекция
-        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.08)
-        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.04)
-    else:
-        # Для естественных оттенков - более заметное улучшение
-        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)
-        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)
-        
-        # Добавляем теплый оттенок
-        warm_overlay = Image.new("RGB", enhanced.size, (255, 240, 230))
-        enhanced = Image.blend(enhanced, warm_overlay, 0.06)
-        
-        # Улучшаем текстуру кожи
-        enhanced = enhanced.filter(ImageFilter.UnsharpMask(radius=0.8, percent=80, threshold=3))
+        # Для неестественных оттенков просто возвращаем оригинал
+        return face_region
     
+    # Для естественных оттенков можем немного улучшить
+    enhanced = face_region.copy()
+    enhanced = ImageEnhance.Color(enhanced).enhance(1.05)  # Легкое усиление цвета
     return enhanced
 
 def create_person_mask(image: Image.Image, face_data) -> Image.Image:
@@ -701,15 +690,13 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
         return image
         
     img = image.copy()
-    person_mask = create_person_mask(img, face_data)
-    if person_mask is None:
-        return img
-        
-    # Создаем улучшенную версию
-    enhanced = img.copy()
-    x1, y1, x2, y2 = map(int, face_data.bbox)
     
-    # Проверяем цвет кожи перед улучшением
+    # Общее осветление для всего изображения
+    enhanced = img.copy()
+    enhanced = ImageEnhance.Brightness(enhanced).enhance(1.08)
+    
+    # Проверяем цвет кожи
+    x1, y1, x2, y2 = map(int, face_data.bbox)
     face_region = enhanced.crop((x1, y1, x2, y2))
     img_np = np.array(face_region)
     skin_pixels = img_np[(img_np[:,:,0] > 60) & (img_np[:,:,1] > 60) & (img_np[:,:,2] > 60)]
@@ -723,84 +710,42 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
     else:
         is_unnatural = False
 
-    # Базовое освещение для всех сценариев
-    light_mask = create_lighting_mask(enhanced.size, x1, y1, x2, y2)
-    
     if scene_type == "club":
         # Специальная обработка для клубных фото
         enhanced = apply_premium_noise_reduction(enhanced, 'strong')
         
         if not is_unnatural:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.22)
-            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.10)
-            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.30)
-        else:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)
             enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)
-            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.20)
-        
-        # Сохраняем цветовую атмосферу
-        enhanced = Image.composite(extra_light, enhanced, light_mask)
         
     elif scene_type == "day":
-        # Для дневных фото - усиленное освещение
+        # Для дневных фото
         if not is_unnatural:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.18)
-            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.08)
-            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.25)
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.10)
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.05)
             
             # Добавляем теплый оттенок
             warm_overlay = Image.new("RGB", enhanced.size, (255, 240, 230))
-            enhanced = Image.blend(enhanced, warm_overlay, 0.08)
-        else:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)
-            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.05)
-            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.15)
-        
-        enhanced = Image.composite(extra_light, enhanced, light_mask)
+            enhanced = Image.blend(enhanced, warm_overlay, 0.05)
         
     else:
         # Для вечерних фото
         enhanced = apply_premium_noise_reduction(enhanced, 'strong')
         
         if not is_unnatural:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.20)
-            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.08)
-            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.28)
+            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)
+            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)
             
             # Добавляем теплый оттенок
             warm_overlay = Image.new("RGB", enhanced.size, (255, 240, 230))
-            enhanced = Image.blend(enhanced, warm_overlay, 0.07)
-        else:
-            enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)
-            enhanced = ImageEnhance.Contrast(enhanced).enhance(1.05)
-            extra_light = ImageEnhance.Brightness(enhanced).enhance(1.20)
-        
-        enhanced = Image.composite(extra_light, enhanced, light_mask)
+            enhanced = Image.blend(enhanced, warm_overlay, 0.04)
     
-    # Нормализация цвета кожи с расширенной областью
-    face_padding = int((x2 - x1) * 0.2)
-    face_x1 = max(0, x1 - face_padding)
-    face_y1 = max(0, y1 - face_padding)
-    face_x2 = min(enhanced.width, x2 + face_padding)
-    face_y2 = min(enhanced.height, y2 + face_padding)
-    
-    face_region = enhanced.crop((face_x1, face_y1, face_x2, face_y2))
+    # Нормализация цвета кожи
+    face_region = enhanced.crop((x1, y1, x2, y2))
     face_region = normalize_skin_tone(face_region)
+    enhanced.paste(face_region, (x1, y1))
     
-    # Дополнительное улучшение текстуры
-    if scene_type != "club":
-        face_region = face_region.filter(ImageFilter.UnsharpMask(radius=0.8, percent=80, threshold=3))
-    
-    enhanced.paste(face_region, (face_x1, face_y1))
-    
-    # Финальное смешивание
-    result = Image.composite(enhanced, img, person_mask)
-    
-    # Финальное улучшение контраста
-    result = ImageEnhance.Contrast(result).enhance(1.05)
-    
-    return result
+    return enhanced
 
 def create_lighting_mask(size, x1, y1, x2, y2):
     """Создание маски освещения для лица и тела."""
