@@ -449,46 +449,48 @@ def apply_advanced_noise_reduction(image: Image.Image, strength: str = 'normal')
     """Продвинутое шумоподавление с сохранением деталей."""
     img = image.copy()
     
-    # Параметры в зависимости от силы шумоподавления
     if strength == 'strong':
-        # Начальное сильное шумоподавление
+        # Сильное начальное шумоподавление
         img = img.filter(ImageFilter.MedianFilter(size=3))
-        img = img.filter(ImageFilter.GaussianBlur(radius=0.8))
         
         # Создаем несколько размытых версий
-        blur1 = img.filter(ImageFilter.GaussianBlur(radius=1.2))
-        blur2 = img.filter(ImageFilter.GaussianBlur(radius=0.6))
+        blur1 = img.filter(ImageFilter.GaussianBlur(radius=2.0))
+        blur2 = img.filter(ImageFilter.GaussianBlur(radius=1.0))
         
         # Находим края
         edge_mask = img.filter(ImageFilter.FIND_EDGES)
         edge_mask = edge_mask.convert('L')
-        edge_mask = edge_mask.point(lambda x: 255 if x > 15 else 0)
-        edge_mask = edge_mask.filter(ImageFilter.GaussianBlur(radius=0.8))
+        edge_mask = edge_mask.point(lambda x: 255 if x > 20 else 0)
+        edge_mask = edge_mask.filter(ImageFilter.GaussianBlur(radius=1.0))
         
         # Создаем маску деталей
         detail_mask = img.filter(ImageFilter.DETAIL)
         detail_mask = detail_mask.convert('L')
-        detail_mask = detail_mask.point(lambda x: 255 if x > 10 else 0)
+        detail_mask = detail_mask.point(lambda x: 255 if x > 15 else 0)
         
         # Комбинируем маски
         final_mask = ImageChops.lighter(edge_mask, detail_mask)
-        final_mask = final_mask.filter(ImageFilter.GaussianBlur(radius=0.8))
+        final_mask = final_mask.filter(ImageFilter.GaussianBlur(radius=1.0))
         
         # Смешиваем версии
         result = Image.composite(img, blur1, final_mask)
         result = Image.composite(result, blur2, edge_mask)
+        
+        # Восстанавливаем детали
+        result = result.filter(ImageFilter.UnsharpMask(radius=1.5, percent=140, threshold=3))
     else:
         # Стандартное шумоподавление
         img = img.filter(ImageFilter.MedianFilter(size=3))
-        blurred = img.filter(ImageFilter.GaussianBlur(radius=0.8))
+        blurred = img.filter(ImageFilter.GaussianBlur(radius=1.0))
         
         edge_mask = img.filter(ImageFilter.FIND_EDGES)
         edge_mask = edge_mask.convert('L')
-        edge_mask = edge_mask.point(lambda x: 255 if x > 20 else 0)
-        edge_mask = edge_mask.filter(ImageFilter.GaussianBlur(radius=0.8))
+        edge_mask = edge_mask.point(lambda x: 255 if x > 25 else 0)
+        edge_mask = edge_mask.filter(ImageFilter.GaussianBlur(radius=1.0))
         
         result = Image.composite(img, blurred, edge_mask)
-    
+        result = result.filter(ImageFilter.UnsharpMask(radius=1, percent=120, threshold=3))
+
     return result
 
 def apply_natural_glow(image: Image.Image) -> Image.Image:
@@ -585,39 +587,78 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
         is_car_light = False
     
     if scene_type == "day" and not is_car_light:
-        # Для дневных фото без света фар - обычные улучшения
-        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.05)
-        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.03)
-        enhanced = ImageEnhance.Color(enhanced).enhance(1.15)  # Добавляем красочность
+        # Для дневных фото без света фар - заметные улучшения
+        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)
+        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.12)
+        enhanced = ImageEnhance.Color(enhanced).enhance(1.25)
+        
+        # Добавляем теплый свет
+        warm_light = Image.new('RGB', enhanced.size, (255, 245, 235))
+        enhanced = Image.blend(enhanced, warm_light, 0.15)
+        
+        # Увеличиваем детализацию
+        enhanced = enhanced.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
+        
     elif scene_type == "day" and is_car_light:
-        # Для дневных фото со светом фар - минимальные улучшения
-        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.02)
-        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.01)
-        enhanced = ImageEnhance.Color(enhanced).enhance(1.08)  # Легкая красочность
+        # Для дневных фото со светом фар
+        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.08)
+        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.06)
+        enhanced = ImageEnhance.Color(enhanced).enhance(1.15)
+        enhanced = enhanced.filter(ImageFilter.UnsharpMask(radius=1.5, percent=120, threshold=3))
+        
     elif scene_type == "evening" and not is_car_light:
         # Для вечерних фото без света фар
-        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)
-        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.05)
-        enhanced = ImageEnhance.Color(enhanced).enhance(1.2)   # Больше красочности для вечера
         enhanced = apply_advanced_noise_reduction(enhanced, 'strong')
+        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.25)
+        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.15)
+        enhanced = ImageEnhance.Color(enhanced).enhance(1.3)
+        
+        # Добавляем теплое свечение
+        warm_glow = Image.new('RGB', enhanced.size, (255, 240, 220))
+        enhanced = Image.blend(enhanced, warm_glow, 0.2)
+        
+        # Увеличиваем детализацию после шумоподавления
+        enhanced = enhanced.filter(ImageFilter.UnsharpMask(radius=2, percent=180, threshold=3))
+        
     else:
         # Для вечерних фото со светом фар
-        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.05)
-        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.02)
-        enhanced = ImageEnhance.Color(enhanced).enhance(1.1)   # Умеренная красочность
         enhanced = apply_advanced_noise_reduction(enhanced, 'strong')
+        enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15)
+        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.08)
+        enhanced = ImageEnhance.Color(enhanced).enhance(1.2)
+        enhanced = enhanced.filter(ImageFilter.UnsharpMask(radius=1.5, percent=130, threshold=3))
     
-    # Добавляем теплоту в тени для более живого изображения
-    if not is_car_light:
-        warm_overlay = Image.new('RGB', enhanced.size, (255, 240, 230))
-        enhanced = Image.blend(enhanced, warm_overlay, 0.05)
+    # Улучшаем текстуры кожи и волос
+    width, height = enhanced.size
+    person_area = enhanced.crop((
+        max(0, x1 - (x2-x1)//2),
+        max(0, y1 - (y2-y1)//2),
+        min(width, x2 + (x2-x1)//2),
+        min(height, y2 + (y2-y1))
+    ))
+    
+    # Применяем улучшение текстур
+    person_area = person_area.filter(ImageFilter.UnsharpMask(radius=1, percent=120, threshold=3))
+    enhanced.paste(person_area, (
+        max(0, x1 - (x2-x1)//2),
+        max(0, y1 - (y2-y1)//2)
+    ))
     
     # Нормализация цвета кожи
     face_region = enhanced.crop((x1, y1, x2, y2))
     face_region = normalize_skin_tone(face_region)
+    
+    # Дополнительное улучшение лица
+    if not is_car_light:
+        # Добавляем легкое свечение
+        face_glow = face_region.copy()
+        face_glow = ImageEnhance.Brightness(face_glow).enhance(1.2)
+        face_glow = face_glow.filter(ImageFilter.GaussianBlur(radius=3))
+        face_region = Image.blend(face_region, face_glow, 0.3)
+    
     enhanced.paste(face_region, (x1, y1))
     
-    # Применяем улучшения только к области человека
+    # Применяем улучшения только к области человека с плавным переходом
     result = Image.composite(enhanced, img, person_mask)
     
     return result
