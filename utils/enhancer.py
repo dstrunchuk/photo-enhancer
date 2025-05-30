@@ -369,7 +369,7 @@ def apply_true_eye_glow_to_all(image: Image.Image) -> Image.Image:
     """Glow как у глаза — + восстановление чёткости."""
     img = image.copy()
 
-    bright = ImageEnhance.Brightness(img).enhance(1.12)
+    bright = ImageEnhance.Brightness(img).enhance(1.05)
     contrast = ImageEnhance.Contrast(bright).enhance(1.2)
 
     glow = contrast.filter(ImageFilter.GaussianBlur(radius=4))
