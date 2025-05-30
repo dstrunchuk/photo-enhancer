@@ -75,6 +75,50 @@ def enhance_all_eyes(image: Image.Image, faces: list) -> Image.Image:
 
     return img
 
+def enhance_eye_by_center(image: Image.Image, points: list) -> Image.Image:
+    """Улучшение глаза по центру landmarks с мягкой эллиптической маской."""
+    img = image.copy()
+    
+    # Вычисляем центр и радиус
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+
+    if not xs or not ys:
+        return img
+
+    cx = int(sum(xs) / len(xs))
+    cy = int(sum(ys) / len(ys))
+    rx = int((max(xs) - min(xs)) * 1.1)
+    ry = int((max(ys) - min(ys)) * 1.6)
+
+    x1 = max(cx - rx, 0)
+    y1 = max(cy - ry, 0)
+    x2 = min(cx + rx, image.width)
+    y2 = min(cy + ry, image.height)
+    box = (x1, y1, x2, y2)
+
+    region = img.crop(box)
+
+    # Улучшаем яркость и контраст
+    region = ImageEnhance.Brightness(region).enhance(1.12)
+    region = ImageEnhance.Contrast(region).enhance(1.20)
+
+    # Добавляем мягкое свечение
+    glow = region.filter(ImageFilter.GaussianBlur(radius=2))
+    region = Image.blend(region, glow, 0.25)
+
+    # Маска — мягкий эллипс
+    mask = Image.new("L", region.size, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.ellipse((0, 0, region.size[0], region.size[1]), fill=255)
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=3))
+
+    base = img.crop(box)
+    final = Image.composite(region, base, mask)
+    img.paste(final, box)
+
+    return img
+
 def enhance_all_eyes(image: Image.Image, faces: list) -> Image.Image:
     """Улучшение глаз у всех обнаруженных лиц."""
     img = image.copy()
