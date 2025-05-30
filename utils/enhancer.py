@@ -311,19 +311,18 @@ def conditional_brightness(image: Image.Image) -> Image.Image:
         brightness_factor = np.clip(1.4 - (avg_brightness - 80) * 0.00375, 1.1, 1.4)
     return ImageEnhance.Brightness(image).enhance(brightness_factor)
 
-def lighten_skin_and_hair_only(image: Image.Image, face_data) -> Image.Image:
-    """Полное свечение кожи и волос с тем же эффектом, как на глазу."""
+def apply_full_skin_glow(image: Image.Image, face_data) -> Image.Image:
+    """Молочно-гладкий персиковый glow по всему телу как у глаза 😍"""
     img = image.copy()
 
     x1, y1, x2, y2 = map(int, face_data.bbox)
     width, height = img.size
 
-    # Центр области — примерно от головы до груди
     center_x = (x1 + x2) // 2
     center_y = (y1 + y2) // 2 + int((y2 - y1) * 0.5)
 
-    ellipse_width = int((x2 - x1) * 3.2)
-    ellipse_height = int((y2 - y1) * 4.2)
+    ellipse_width = int((x2 - x1) * 3.6)
+    ellipse_height = int((y2 - y1) * 4.5)
 
     mask = Image.new("L", (width, height), 0)
     draw = ImageDraw.Draw(mask)
@@ -332,19 +331,19 @@ def lighten_skin_and_hair_only(image: Image.Image, face_data) -> Image.Image:
         max(center_y - ellipse_height // 2, 0),
         min(center_x + ellipse_width // 2, width),
         min(center_y + ellipse_height // 2, height)
-    ], fill=170)
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=45))
+    ], fill=160)
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=60))
 
-    # Эффект как на глазу:
+    # Эффект — как у глаза:
     enhanced = img.copy()
-    enhanced = ImageEnhance.Brightness(enhanced).enhance(1.10)
-    enhanced = ImageEnhance.Contrast(enhanced).enhance(1.14)
-    glow = enhanced.filter(ImageFilter.GaussianBlur(radius=5))
-    enhanced = Image.blend(enhanced, glow, 0.18)
+    enhanced = ImageEnhance.Brightness(enhanced).enhance(1.12)
+    enhanced = ImageEnhance.Contrast(enhanced).enhance(1.15)
 
-    # Добавим тёплый слой
-    overlay = Image.new("RGB", img.size, (255, 235, 220))
-    enhanced = Image.blend(enhanced, overlay, 0.03)
+    glow = enhanced.filter(ImageFilter.GaussianBlur(radius=4))
+    enhanced = Image.blend(enhanced, glow, 0.25)
+
+    overlay = Image.new("RGB", img.size, (255, 240, 225))  # светлый персик
+    enhanced = Image.blend(enhanced, overlay, 0.04)
 
     return Image.composite(enhanced, img, mask)
 
@@ -984,7 +983,7 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
             face_region = normalize_skin_tone(face_region)
             image_idn.paste(face_region, (x1, y1))
 
-            image_idn = lighten_skin_and_hair_only(image_idn, face)
+            image_idn = apply_full_skin_glow(image_idn, face)
 
     # Финальное улучшение
         final_image = enhance_person_region(image_idn, face, "day" if scene_type != "night" else "evening")
