@@ -899,36 +899,31 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
             }
         )
         
-                # После загрузки от IDNBeauty
-        img_np = np.array(image_idn)
-        faces = face_analyzer.get(img_np)
-        face = faces[0] if faces else None
-        scene_type = classify_scene(image_idn)
-        skin_tone = analyze_skin_tone(image_idn, face)
-
-        # 👁 Улучшаем глаза всем
-        image_idn = enhance_all_eyes(image_idn, faces)
-
-        # 🌡 Потепление тона кожи
-        image_idn = apply_skin_warmth_overlay(image_idn, intensity=0.035)
-
+        # ✅ Сначала скачиваем и открываем результат
         response = requests.get(str(idnbeauty_result[0]))
         image_idn = Image.open(io.BytesIO(response.content)).convert("RGB")
 
+    # ✅ Только теперь можно использовать image_idn
         img_np = np.array(image_idn)
         faces = face_analyzer.get(img_np)
         face = faces[0] if faces else None
         scene_type = classify_scene(image_idn)
         skin_tone = analyze_skin_tone(image_idn, face)
 
-        # Сначала корректируем цвет кожи
+    # 👁 Улучшаем глаза всем
+        image_idn = enhance_all_eyes(image_idn, faces)
+
+    # 🌡 Потепление тона кожи
+        image_idn = apply_skin_warmth_overlay(image_idn, intensity=0.035)
+
+    # Коррекция цвета кожи
         if face:
             x1, y1, x2, y2 = map(int, face.bbox)
             face_region = image_idn.crop((x1, y1, x2, y2))
             face_region = normalize_skin_tone(face_region)
             image_idn.paste(face_region, (x1, y1))
 
-        # Затем применяем остальные улучшения
+    # Финальное улучшение
         final_image = enhance_person_region(image_idn, face, "day" if scene_type != "night" else "evening")
 
         final_bytes = io.BytesIO()
