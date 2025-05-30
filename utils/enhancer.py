@@ -1023,27 +1023,35 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
         scene_type = classify_scene(image_idn)
         skin_tone = analyze_skin_tone(image_idn, face)
 
-    # 👁 Улучшаем глаза всем
+# 👁 Улучшаем глаза всем (если вернёшь обратно)
         # image_idn = enhance_all_eyes(image_idn, faces)
 
-    # 🌡 Потепление тона кожи
+# 🌡 Потепление тона кожи
         image_idn = apply_skin_warmth_overlay(image_idn, intensity=0.035)
 
-    # Коррекция цвета кожи
+# 💾 Сохраняем лицо ДО свечения, если оно есть
         if face:
             x1, y1, x2, y2 = map(int, face.bbox)
             face_region = image_idn.crop((x1, y1, x2, y2))
+
+    # ✨ Корректируем только лицо (до glow)
             face_region = normalize_skin_tone(face_region)
+
+# ✨ Glow на всё тело (до вставки лица обратно)
+        image_idn = apply_full_glow_to_all(image_idn)
+        image_idn = apply_true_eye_glow_to_all(image_idn)
+
+# 🧩 Возвращаем лицо обратно, чтобы оно не стало мыльным
+        if face:
             image_idn.paste(face_region, (x1, y1))
 
-            image_idn = apply_full_glow_to_all(image_idn)
-            image_idn = apply_true_eye_glow_to_all(image_idn)
-            
-
-    # Финальное улучшение
+# 🧠 Финальное улучшение по сцене
         final_image = enhance_person_region(image_idn, face, "day" if scene_type != "night" else "evening")
-        final_image = apply_full_skin_glow_match_eye(final_image)
 
+# 🌈 Финальный glow (тот самый как в круге)
+        final_image = apply_full_skin_glow_match_eye(final_image)
+  
+# 💾 Сохраняем
         final_bytes = io.BytesIO()
         final_image.save(final_bytes, format="JPEG", quality=100, subsampling=0)
         final_bytes.seek(0)
