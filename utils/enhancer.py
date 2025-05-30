@@ -16,6 +16,29 @@ import onnxruntime
 # Инициализация моделей
 # =============================================================================
 
+def restore_with_codeformer(image: Image.Image, fidelity: float = 1.0) -> Image.Image:
+    # Сохраняем во временный файл
+    temp_bytes = io.BytesIO()
+    image.save(temp_bytes, format="JPEG")
+    temp_bytes.seek(0)
+
+    # Запрос к Replicate
+    output_url = replicate.run(
+        "cjwbw/codeformer:7fc17c1492fd84f91f2f6b5cd56926b56a22458f8e5304cb48e9c5ce5a27da92",
+        input={
+            "image": temp_bytes,
+            "fidelity": fidelity,
+            "face_upsample": True,  # Увеличит чёткость
+            "background_enhance": False  # Не трогать фон
+        }
+    )
+
+    # Получаем результат
+    response = requests.get(output_url)
+    restored_image = Image.open(io.BytesIO(response.content)).convert("RGB")
+
+    return restored_image
+
 def enhance_single_eye(image: Image.Image, points: list) -> Image.Image:
     """Улучшение одного глаза по точкам landmark с автоопределением центра."""
     img = image.copy()
@@ -1023,35 +1046,28 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
         scene_type = classify_scene(image_idn)
         skin_tone = analyze_skin_tone(image_idn, face)
 
-# 👁 Улучшаем глаза всем (если вернёшь обратно)
+    # 👁 Улучшаем глаза всем
         # image_idn = enhance_all_eyes(image_idn, faces)
 
-# 🌡 Потепление тона кожи
+    # 🌡 Потепление тона кожи
         image_idn = apply_skin_warmth_overlay(image_idn, intensity=0.035)
 
-# 💾 Сохраняем лицо ДО свечения, если оно есть
+    # Коррекция цвета кожи
         if face:
             x1, y1, x2, y2 = map(int, face.bbox)
             face_region = image_idn.crop((x1, y1, x2, y2))
-
-    # ✨ Корректируем только лицо (до glow)
             face_region = normalize_skin_tone(face_region)
-
-# ✨ Glow на всё тело (до вставки лица обратно)
-        image_idn = apply_full_glow_to_all(image_idn)
-        image_idn = apply_true_eye_glow_to_all(image_idn)
-
-# 🧩 Возвращаем лицо обратно, чтобы оно не стало мыльным
-        if face:
             image_idn.paste(face_region, (x1, y1))
 
-# 🧠 Финальное улучшение по сцене
-        final_image = enhance_person_region(image_idn, face, "day" if scene_type != "night" else "evening")
+            image_idn = apply_full_glow_to_all(image_idn)
+            image_idn = apply_true_eye_glow_to_all(image_idn)
+            
 
-# 🌈 Финальный glow (тот самый как в круге)
+    # Финальное улучшение
+        final_image = enhance_person_region(image_idn, face, "day" if scene_type != "night" else "evening")
         final_image = apply_full_skin_glow_match_eye(final_image)
-  
-# 💾 Сохраняем
+        final_image = restore_with_codeformer(final_image, fidelity=1.0)
+
         final_bytes = io.BytesIO()
         final_image.save(final_bytes, format="JPEG", quality=100, subsampling=0)
         final_bytes.seek(0)
