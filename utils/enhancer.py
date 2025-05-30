@@ -989,7 +989,7 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
         skin_tone = analyze_skin_tone(image_idn, face)
 
     # 👁 Улучшаем глаза всем
-        image_idn = enhance_all_eyes(image_idn, faces)
+        # image_idn = enhance_all_eyes(image_idn, faces)
 
     # 🌡 Потепление тона кожи
         image_idn = apply_skin_warmth_overlay(image_idn, intensity=0.035)
