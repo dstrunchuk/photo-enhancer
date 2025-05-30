@@ -17,27 +17,36 @@ import onnxruntime
 # =============================================================================
 
 def enhance_single_eye(image: Image.Image, points: list) -> Image.Image:
-    """Улучшение одного глаза по координатам landmark."""
+    """Улучшение одного глаза по точкам landmark с автоопределением центра."""
     img = image.copy()
 
-    # Получаем границы глаза
     xs = [int(p[0]) for p in points]
     ys = [int(p[1]) for p in points]
-    x1, y1 = max(min(xs) - 2, 0), max(min(ys) - 2, 0)
-    x2, y2 = min(max(xs) + 2, img.width), min(max(ys) + 2, img.height)
-    box = (x1, y1, x2, y2)
 
+    if not xs or not ys:
+        return img
+
+    # Центр и размеры
+    cx = sum(xs) // len(xs)
+    cy = sum(ys) // len(ys)
+    w = (max(xs) - min(xs)) * 1.4
+    h = (max(ys) - min(ys)) * 1.6
+
+    x1 = int(max(cx - w // 2, 0))
+    y1 = int(max(cy - h // 2, 0))
+    x2 = int(min(cx + w // 2, img.width))
+    y2 = int(min(cy + h // 2, img.height))
+
+    box = (x1, y1, x2, y2)
     region = img.crop(box)
 
-    # Усиливаем яркость и контраст
-    region = ImageEnhance.Brightness(region).enhance(1.15)
-    region = ImageEnhance.Contrast(region).enhance(1.2)
-
-    # Добавляем glow
+    # Яркость, контраст, glow
+    region = ImageEnhance.Brightness(region).enhance(1.12)
+    region = ImageEnhance.Contrast(region).enhance(1.18)
     glow = region.filter(ImageFilter.GaussianBlur(radius=2))
     region = Image.blend(region, glow, 0.25)
 
-    # Маска — мягкое затемнение по краям
+    # Плавная маска
     mask = Image.new("L", region.size, 0)
     draw = ImageDraw.Draw(mask)
     draw.ellipse((0, 0, region.size[0], region.size[1]), fill=255)
@@ -59,9 +68,9 @@ def enhance_all_eyes(image: Image.Image, faces: list) -> Image.Image:
         if len(landmarks) < 68:
             continue
 
-        # Стандартные индексы глаз
-        left_eye = landmarks[36:42]
-        right_eye = landmarks[42:48]
+                # Получаем более точные зоны вокруг глаз
+        left_eye = landmarks[96:102]   # верхнее веко + область
+        right_eye = landmarks[102:108]
 
         img = enhance_single_eye(img, left_eye)
         img = enhance_single_eye(img, right_eye)
@@ -711,17 +720,17 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
         # Улучшаем область лица
         if scene_type == "day":
             # Дневная обработка лица
-            face_area = ImageEnhance.Brightness(face_area).enhance(1.06)
-            face_area = ImageEnhance.Contrast(face_area).enhance(1.04)
+            face_area = ImageEnhance.Brightness(face_area).enhance(1.08)
+            face_area = ImageEnhance.Contrast(face_area).enhance(1.06)
             
             # Добавляем легкое сияние
             glow = face_area.filter(ImageFilter.GaussianBlur(radius=10))
-            face_area = Image.blend(face_area, glow, 0.1)
+            face_area = Image.blend(face_area, glow, 0.2)
             
         elif is_club_lighting:
             # Клубное освещение - более интенсивная обработка
-            face_area = ImageEnhance.Brightness(face_area).enhance(1.25)
-            face_area = ImageEnhance.Contrast(face_area).enhance(1.15)
+            face_area = ImageEnhance.Brightness(face_area).enhance(1.15)
+            face_area = ImageEnhance.Contrast(face_area).enhance(1.20)
             
             # Сохраняем детали
             face_area = face_area.filter(ImageFilter.UnsharpMask(radius=1, percent=150, threshold=3))
