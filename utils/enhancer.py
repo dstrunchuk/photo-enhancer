@@ -347,6 +347,23 @@ def apply_full_skin_glow(image: Image.Image, face_data) -> Image.Image:
 
     return Image.composite(enhanced, img, mask)
 
+def apply_full_skin_glow_match_eye(image: Image.Image) -> Image.Image:
+    """Применяет мягкий тёплый тон и свечение ко всему изображению."""
+    img = image.copy()
+    
+    # Теплый светлый слой (тот самый «глазной»)
+    warm_glow = Image.new("RGB", img.size, (255, 230, 200))
+    glow_overlay = Image.blend(img, warm_glow, 0.07)
+
+    # Повышение яркости и мягкости
+    brightened = ImageEnhance.Brightness(glow_overlay).enhance(1.07)
+    softened = brightened.filter(ImageFilter.GaussianBlur(radius=1.2))
+
+    # Комбинируем с оригиналом для сохранения резкости
+    final = Image.blend(img, softened, 0.35)
+
+    return final
+
 def apply_full_glow_to_all(image: Image.Image) -> Image.Image:
     """Нанесение полного персикового glow по всей фотографии — как внутри глаза."""
     img = image.copy()
@@ -1021,6 +1038,7 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
 
             image_idn = apply_full_glow_to_all(image_idn)
             image_idn = apply_true_eye_glow_to_all(image_idn)
+            final_image = apply_full_skin_glow_match_eye(final_image)
 
     # Финальное улучшение
         final_image = enhance_person_region(image_idn, face, "day" if scene_type != "night" else "evening")
