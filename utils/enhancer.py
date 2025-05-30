@@ -15,6 +15,80 @@ import onnxruntime
 # =============================================================================
 # Инициализация моделей
 # =============================================================================
+
+def enhance_single_eye(image: Image.Image, points: list) -> Image.Image:
+    """Улучшение одного глаза по координатам landmark."""
+    img = image.copy()
+
+    # Получаем границы глаза
+    xs = [int(p[0]) for p in points]
+    ys = [int(p[1]) for p in points]
+    x1, y1 = max(min(xs) - 2, 0), max(min(ys) - 2, 0)
+    x2, y2 = min(max(xs) + 2, img.width), min(max(ys) + 2, img.height)
+    box = (x1, y1, x2, y2)
+
+    region = img.crop(box)
+
+    # Усиливаем яркость и контраст
+    region = ImageEnhance.Brightness(region).enhance(1.15)
+    region = ImageEnhance.Contrast(region).enhance(1.2)
+
+    # Добавляем glow
+    glow = region.filter(ImageFilter.GaussianBlur(radius=2))
+    region = Image.blend(region, glow, 0.25)
+
+    # Маска — мягкое затемнение по краям
+    mask = Image.new("L", region.size, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.ellipse((0, 0, region.size[0], region.size[1]), fill=255)
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=3))
+
+    base = img.crop(box)
+    final = Image.composite(region, base, mask)
+    img.paste(final, box)
+
+    return img
+
+def enhance_all_eyes(image: Image.Image, faces: list) -> Image.Image:
+    """Улучшение глаз у всех обнаруженных лиц."""
+    img = image.copy()
+    for face in faces:
+        if not hasattr(face, "landmark_2d_106"):
+            continue
+        landmarks = face.landmark_2d_106
+        if len(landmarks) < 68:
+            continue
+
+        # Стандартные индексы глаз
+        left_eye = landmarks[36:42]
+        right_eye = landmarks[42:48]
+
+        img = enhance_single_eye(img, left_eye)
+        img = enhance_single_eye(img, right_eye)
+
+    return img
+def apply_skin_warmth_overlay(image: Image.Image, intensity: float = 0.035) -> Image.Image:
+    """Добавление тёплого, мягкого тона кожи как в Remini."""
+    img = image.copy()
+
+    # Тёплый оттенок: можно варьировать от светло-персикового до розового
+    warm_base = np.array([
+        [255, 235, 210],  # мягкий персик
+        [255, 220, 200],  # бежево-розовый
+        [255, 240, 215],  # молочный
+    ])
+    # Рандомный выбор оттенка
+    tone = tuple(warm_base[np.random.randint(0, len(warm_base))])
+
+    overlay = Image.new("RGB", img.size, tone)
+    img = Image.blend(img, overlay, intensity)
+
+    # Дополнительное мягкое свечение
+    glow = img.filter(ImageFilter.GaussianBlur(radius=3))
+    img = Image.blend(img, glow, 0.05)
+
+    return img
+
 def ensure_insightface_model():
     """Загрузка и подготовка модели InsightFace для анализа лиц."""
     model_dir = "models/buffalo_l"
@@ -824,6 +898,19 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
                 "extra_lora_scale": 0.07    # Умеренное дополнительное влияние
             }
         )
+        
+                # После загрузки от IDNBeauty
+        img_np = np.array(image_idn)
+        faces = face_analyzer.get(img_np)
+        face = faces[0] if faces else None
+        scene_type = classify_scene(image_idn)
+        skin_tone = analyze_skin_tone(image_idn, face)
+
+        # 👁 Улучшаем глаза всем
+        image_idn = enhance_all_eyes(image_idn, faces)
+
+        # 🌡 Потепление тона кожи
+        image_idn = apply_skin_warmth_overlay(image_idn, intensity=0.035)
 
         response = requests.get(str(idnbeauty_result[0]))
         image_idn = Image.open(io.BytesIO(response.content)).convert("RGB")
