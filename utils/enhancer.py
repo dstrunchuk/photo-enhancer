@@ -369,7 +369,7 @@ def apply_full_glow_to_all(image: Image.Image) -> Image.Image:
     img = image.copy()
 
     # Этап 1: Базовое усиление
-    enhanced = ImageEnhance.Brightness(img).enhance(1.12)
+    enhanced = ImageEnhance.Brightness(img).enhance(1.10)
     enhanced = ImageEnhance.Contrast(enhanced).enhance(1.15)
 
     # Этап 2: Glow эффект
@@ -680,7 +680,7 @@ def apply_natural_glow(image: Image.Image) -> Image.Image:
     """Добавление естественного свечения."""
     # Создаем слой свечения
     glow = image.copy()
-    glow = ImageEnhance.Brightness(glow).enhance(1.3)
+    glow = ImageEnhance.Brightness(glow).enhance(1.2)
     glow = glow.filter(ImageFilter.GaussianBlur(radius=10))
     
     # Смешиваем с оригиналом
@@ -824,7 +824,7 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
         # Улучшаем область лица
         if scene_type == "day":
             # Дневная обработка лица
-            face_area = ImageEnhance.Brightness(face_area).enhance(1.10)
+            face_area = ImageEnhance.Brightness(face_area).enhance(1.03)
             face_area = ImageEnhance.Contrast(face_area).enhance(1.06)
             
             # Добавляем легкое сияние
@@ -833,7 +833,7 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
             
         elif is_club_lighting:
             # Клубное освещение - более интенсивная обработка
-            face_area = ImageEnhance.Brightness(face_area).enhance(1.10)
+            face_area = ImageEnhance.Brightness(face_area).enhance(1.07)
             face_area = ImageEnhance.Contrast(face_area).enhance(1.50)
             
             # Сохраняем детали
@@ -841,7 +841,7 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
             
         else:
             # Ночная обработка
-            face_area = ImageEnhance.Brightness(face_area).enhance(1.18)
+            face_area = ImageEnhance.Brightness(face_area).enhance(1.12)
             face_area = ImageEnhance.Contrast(face_area).enhance(1.12)
         
         # Создаем маску для плавного перехода
