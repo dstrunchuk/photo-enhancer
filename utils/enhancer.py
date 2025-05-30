@@ -17,27 +17,23 @@ import onnxruntime
 # =============================================================================
 
 def restore_with_codeformer(image: Image.Image, fidelity: float = 1.0) -> Image.Image:
-    # Сохраняем во временный файл
     temp_bytes = io.BytesIO()
     image.save(temp_bytes, format="JPEG")
     temp_bytes.seek(0)
 
-    # Запрос к Replicate
     output_url = replicate.run(
-        "cjwbw/codeformer:7fc17c1492fd84f91f2f6b5cd56926b56a22458f8e5304cb48e9c5ce5a27da92",
+        "sczhou/codeformer:cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2",
         input={
             "image": temp_bytes,
-            "fidelity": fidelity,
-            "face_upsample": True,  # Увеличит чёткость
-            "background_enhance": False  # Не трогать фон
+            "upscale": 1,
+            "face_upsample": True,
+            "background_enhance": False,
+            "codeformer_fidelity": fidelity  # 0.0 = максимальное восстановление, 1.0 = максимум оригинальности
         }
     )
 
-    # Получаем результат
     response = requests.get(output_url)
-    restored_image = Image.open(io.BytesIO(response.content)).convert("RGB")
-
-    return restored_image
+    return Image.open(io.BytesIO(response.content)).convert("RGB")
 
 def enhance_single_eye(image: Image.Image, points: list) -> Image.Image:
     """Улучшение одного глаза по точкам landmark с автоопределением центра."""
