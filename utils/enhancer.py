@@ -375,7 +375,7 @@ def apply_full_skin_glow_match_eye(image: Image.Image) -> Image.Image:
     glow_overlay = Image.blend(img, warm_glow, 0.1)
 
     # Повышение яркости и мягкости
-    brightened = ImageEnhance.Brightness(glow_overlay).enhance(1.07)
+    brightened = ImageEnhance.Brightness(glow_overlay).enhance(1.02)
     softened = brightened.filter(ImageFilter.GaussianBlur(radius=1.2))
 
     # Комбинируем с оригиналом для сохранения резкости
