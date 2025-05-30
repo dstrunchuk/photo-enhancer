@@ -65,15 +65,32 @@ def enhance_all_eyes(image: Image.Image, faces: list) -> Image.Image:
         if not hasattr(face, "landmark_2d_106"):
             continue
         landmarks = face.landmark_2d_106
-        if len(landmarks) < 68:
+
+        # Берём только реальные глазные области (левый и правый глаз)
+        left_eye_points = [landmarks[i] for i in range(96, 102)]
+        right_eye_points = [landmarks[i] for i in range(102, 108)]
+
+        img = enhance_eye_by_center(img, left_eye_points)
+        img = enhance_eye_by_center(img, right_eye_points)
+
+    return img
+
+def enhance_all_eyes(image: Image.Image, faces: list) -> Image.Image:
+    """Улучшение глаз у всех обнаруженных лиц."""
+    img = image.copy()
+    for face in faces:
+        if not hasattr(face, "landmark_2d_106"):
             continue
+        landmarks = face.landmark_2d_106
 
-                # Получаем более точные зоны вокруг глаз
-        left_eye = landmarks[96:102]   # верхнее веко + область
-        right_eye = landmarks[102:108]
+        # Берём только реальные глазные области (левый и правый глаз)
+        left_eye_points = [landmarks[i] for i in range(96, 102)]
+        right_eye_points = [landmarks[i] for i in range(102, 108)]
 
-        img = enhance_single_eye(img, left_eye)
-        img = enhance_single_eye(img, right_eye)
+        img = enhance_eye_by_center(img, left_eye_points)
+        img = enhance_eye_by_center(img, right_eye_points)
+
+    return img
 
     return img
 def apply_skin_warmth_overlay(image: Image.Image, intensity: float = 0.035) -> Image.Image:
@@ -720,17 +737,17 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
         # Улучшаем область лица
         if scene_type == "day":
             # Дневная обработка лица
-            face_area = ImageEnhance.Brightness(face_area).enhance(1.08)
+            face_area = ImageEnhance.Brightness(face_area).enhance(1.10)
             face_area = ImageEnhance.Contrast(face_area).enhance(1.06)
             
             # Добавляем легкое сияние
             glow = face_area.filter(ImageFilter.GaussianBlur(radius=10))
-            face_area = Image.blend(face_area, glow, 0.2)
+            face_area = Image.blend(face_area, glow, 0.3)
             
         elif is_club_lighting:
             # Клубное освещение - более интенсивная обработка
-            face_area = ImageEnhance.Brightness(face_area).enhance(1.15)
-            face_area = ImageEnhance.Contrast(face_area).enhance(1.20)
+            face_area = ImageEnhance.Brightness(face_area).enhance(1.10)
+            face_area = ImageEnhance.Contrast(face_area).enhance(1.50)
             
             # Сохраняем детали
             face_area = face_area.filter(ImageFilter.UnsharpMask(radius=1, percent=150, threshold=3))
