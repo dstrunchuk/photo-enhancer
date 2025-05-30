@@ -1062,7 +1062,7 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
     # Финальное улучшение
         final_image = enhance_person_region(image_idn, face, "day" if scene_type != "night" else "evening")
         final_image = apply_full_skin_glow_match_eye(final_image)
-        final_image = restore_with_codeformer(final_image, fidelity=1.0)
+       
 
         final_bytes = io.BytesIO()
         final_image.save(final_bytes, format="JPEG", quality=100, subsampling=0)
