@@ -100,18 +100,18 @@ def enhance_eye_by_center(image: Image.Image, points: list) -> Image.Image:
     region = img.crop(box)
 
     # Улучшаем яркость и контраст
-    region = ImageEnhance.Brightness(region).enhance(1.12)
-    region = ImageEnhance.Contrast(region).enhance(1.20)
+    region = ImageEnhance.Brightness(region).enhance(1.08)
+    region = ImageEnhance.Contrast(region).enhance(1.15)
 
     # Добавляем мягкое свечение
-    glow = region.filter(ImageFilter.GaussianBlur(radius=2))
-    region = Image.blend(region, glow, 0.25)
+    glow = region.filter(ImageFilter.GaussianBlur(radius=2.5))
+    region = Image.blend(region, glow, 0.15)
 
     # Маска — мягкий эллипс
     mask = Image.new("L", region.size, 0)
     draw = ImageDraw.Draw(mask)
     draw.ellipse((0, 0, region.size[0], region.size[1]), fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=3))
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=6))
 
     base = img.crop(box)
     final = Image.composite(region, base, mask)
@@ -312,50 +312,41 @@ def conditional_brightness(image: Image.Image) -> Image.Image:
     return ImageEnhance.Brightness(image).enhance(brightness_factor)
 
 def lighten_skin_and_hair_only(image: Image.Image, face_data) -> Image.Image:
-    """Мягкое осветление кожи и волос без размытия."""
+    """Осветление кожи и волос с тем самым тоном Remini 😍"""
     img = image.copy()
 
     x1, y1, x2, y2 = map(int, face_data.bbox)
     width, height = img.size
 
-    # Область вокруг лица
-    margin_x = int((x2 - x1) * 0.6)
-    margin_y = int((y2 - y1) * 0.9)
+    # Центр области — чуть ниже центра лица
     center_x = (x1 + x2) // 2
-    center_y = (y1 + y2) // 2
+    center_y = (y1 + y2) // 2 + int((y2 - y1) * 0.3)
 
-    ex1 = max(center_x - margin_x, 0)
-    ey1 = max(center_y - margin_y, 0)
-    ex2 = min(center_x + margin_x, width)
-    ey2 = min(center_y + margin_y, height)
+    # Эллипс шире и выше, чтобы захватить волосы и тело
+    ellipse_width = int((x2 - x1) * 2.4)
+    ellipse_height = int((y2 - y1) * 3.4)
 
-    region = img.crop((ex1, ey1, ex2, ey2))
-
-    # Осветление без размытия
-    brightened = ImageEnhance.Brightness(region).enhance(1.08)
-    overlay = Image.new("RGB", region.size, (250, 235, 220))
-    blended = Image.blend(brightened, overlay, 0.03)
-
-    # Плавная маска перехода
-    mask = Image.new("L", region.size, 0)
+    mask = Image.new("L", (width, height), 0)
     draw = ImageDraw.Draw(mask)
-    
-    for y in range(region.size[1]):
-        for x in range(region.size[0]):
-            dx = (x - region.size[0] / 2) / (region.size[0] / 2)
-            dy = (y - region.size[1] / 2) / (region.size[1] / 2)
-            distance = (dx ** 2 + dy ** 2) ** 0.5
-            alpha = max(0, min(255, int(255 * (1 - distance))))
-            mask.putpixel((x, y), alpha)
+    draw.ellipse([
+        max(center_x - ellipse_width // 2, 0),
+        max(center_y - ellipse_height // 2, 0),
+        min(center_x + ellipse_width // 2, width),
+        min(center_y + ellipse_height // 2, height)
+    ], fill=180)
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=35))
 
-    # Минимальное размытие только для маски перехода
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=10))
+    # Создаём мягкое осветление и тёплый тон
+    bright = ImageEnhance.Brightness(img).enhance(1.08)
+    warm_overlay = Image.new("RGB", img.size, (255, 235, 215))
+    blended = Image.blend(bright, warm_overlay, 0.04)
 
-    base = img.crop((ex1, ey1, ex2, ey2))
-    final_region = Image.composite(blended, base, mask)
-    img.paste(final_region, (ex1, ey1))
+    glow = blended.filter(ImageFilter.GaussianBlur(radius=4))
+    final = Image.blend(blended, glow, 0.08)
 
-    return img
+    # Применяем только по маске
+    result = Image.composite(final, img, mask)
+    return result
 
 def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
     """Улучшение освещения лица без размытия."""
@@ -992,6 +983,9 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
             face_region = image_idn.crop((x1, y1, x2, y2))
             face_region = normalize_skin_tone(face_region)
             image_idn.paste(face_region, (x1, y1))
+            
+        if face:
+            image_idn = lighten_skin_and_hair_only(image_idn, face)
 
     # Финальное улучшение
         final_image = enhance_person_region(image_idn, face, "day" if scene_type != "night" else "evening")
