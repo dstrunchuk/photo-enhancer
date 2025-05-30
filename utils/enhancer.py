@@ -84,8 +84,8 @@ def enhance_all_eyes(image: Image.Image, faces: list) -> Image.Image:
         landmarks = face.landmark_2d_106
 
         # Берём только реальные глазные области (левый и правый глаз)
-        left_eye_points = [landmarks[i] for i in range(96, 102)]
-        right_eye_points = [landmarks[i] for i in range(102, 108)]
+        left_eye_points = landmarks[96:102]   # 96–101
+        right_eye_points = landmarks[102:106] # 102–105
 
         img = enhance_eye_by_center(img, left_eye_points)
         img = enhance_eye_by_center(img, right_eye_points)
