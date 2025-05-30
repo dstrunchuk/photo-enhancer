@@ -365,6 +365,24 @@ def apply_full_glow_to_all(image: Image.Image) -> Image.Image:
 
     return final
 
+def apply_true_eye_glow_to_all(image: Image.Image) -> Image.Image:
+    """Glow как у глаза — + восстановление чёткости."""
+    img = image.copy()
+
+    bright = ImageEnhance.Brightness(img).enhance(1.12)
+    contrast = ImageEnhance.Contrast(bright).enhance(1.2)
+
+    glow = contrast.filter(ImageFilter.GaussianBlur(radius=4))
+    blended = Image.blend(contrast, glow, 0.25)
+
+    overlay = Image.new("RGB", img.size, (255, 240, 225))
+    final = Image.blend(blended, overlay, 0.04)
+
+    # ⬅️ ВОТ ОН — шаг резкости
+    final = final.filter(ImageFilter.UnsharpMask(radius=1.2, percent=130, threshold=3))
+
+    return final
+
 def enhance_face_lighting(image: Image.Image, face_data) -> Image.Image:
     """Улучшение освещения лица без размытия."""
     if not face_data:
@@ -1002,6 +1020,7 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
             image_idn.paste(face_region, (x1, y1))
 
             image_idn = apply_full_glow_to_all(image_idn)
+            image_idn = apply_true_eye_glow_to_all(image_idn)
 
     # Финальное улучшение
         final_image = enhance_person_region(image_idn, face, "day" if scene_type != "night" else "evening")
