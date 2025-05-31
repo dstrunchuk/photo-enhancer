@@ -440,7 +440,7 @@ def apply_full_glow_to_all(image: Image.Image) -> Image.Image:
 
     # Этап 2: Мягкий glow как у глаза
     glow = enhanced.filter(ImageFilter.GaussianBlur(radius=3))
-    enhanced = Image.blend(enhanced, glow, 0.3)  # Уменьшаем интенсивность glow
+    enhanced = Image.blend(enhanced, glow, 0.2)  # Уменьшаем интенсивность glow
 
     # Этап 3: Тёплый персиковый налёт
     overlay = Image.new("RGB", img.size, (255, 240, 225))
@@ -453,7 +453,7 @@ def apply_true_eye_glow_to_all(image: Image.Image) -> Image.Image:
     img = image.copy()
 
     # Снижаем начальную яркость
-    bright = ImageEnhance.Brightness(img).enhance(1.1)
+    bright = ImageEnhance.Brightness(img).enhance(1)
     contrast = ImageEnhance.Contrast(bright).enhance(1.15)
 
     # Мягкий glow
@@ -686,10 +686,10 @@ def apply_final_polish(image: Image.Image) -> Image.Image:
 
     # Очень легкая резкость
     if avg_brightness > 140:
-        sharpness = 1.08
+        sharpness = 1.02
     else:
         # Для темных фото уменьшаем резкость
-        sharpness = 1.06
+        sharpness = 1
     img = ImageEnhance.Sharpness(img).enhance(sharpness)
 
     # Финальный теплый оттенок
@@ -799,7 +799,7 @@ def apply_natural_glow(image: Image.Image) -> Image.Image:
     """Добавление естественного свечения."""
     # Создаем слой свечения
     glow = image.copy()
-    glow = ImageEnhance.Brightness(glow).enhance(1.2)
+    glow = ImageEnhance.Brightness(glow).enhance(1.1)
     glow = glow.filter(ImageFilter.GaussianBlur(radius=10))
     
     # Смешиваем с оригиналом
@@ -818,12 +818,12 @@ def enhance_skin_and_hair(region: Image.Image, strength: float = 1.0) -> Image.I
     enhanced = Image.blend(enhanced, pink_glow, 0.05 * strength)
     
     # Увеличиваем яркость и контраст
-    enhanced = ImageEnhance.Brightness(enhanced).enhance(1.15 * strength)
+    enhanced = ImageEnhance.Brightness(enhanced).enhance(1.1 * strength)
     enhanced = ImageEnhance.Contrast(enhanced).enhance(1.08 * strength)
     
     # Добавляем легкое свечение
     glow = enhanced.copy()
-    glow = ImageEnhance.Brightness(glow).enhance(1.2)
+    glow = ImageEnhance.Brightness(glow).enhance(1.1)
     glow = glow.filter(ImageFilter.GaussianBlur(radius=5))
     enhanced = Image.blend(enhanced, glow, 0.2 * strength)
     
