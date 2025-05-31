@@ -952,7 +952,12 @@ def detect_scene_type(image: Image.Image) -> str:
 # =============================================================================
 async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
     """Улучшение изображения с использованием IDNBeauty."""
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    try:
+        buffer = io.BytesIO(image_bytes)
+        buffer.seek(0)
+        image = Image.open(buffer).convert("RGB")
+    except Exception as e:
+        raise Exception(f"Ошибка открытия изображения: {e}, размер файла: {len(image_bytes)} байт")
     image = ImageOps.exif_transpose(image)
 
     temp_filename = f"{uuid.uuid4()}.jpg"
