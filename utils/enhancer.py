@@ -16,6 +16,19 @@ import onnxruntime
 # Инициализация моделей
 # =============================================================================
 
+
+def adjust_overexposed_scene(image: Image.Image) -> Image.Image:
+    enhancer = ImageEnhance.Brightness(image)
+    image = enhancer.enhance(0.88)
+
+    enhancer = ImageEnhance.Contrast(image)
+    image = enhancer.enhance(1.15)
+
+    enhancer = ImageEnhance.Color(image)
+    image = enhancer.enhance(1.12)
+
+    return image
+
 def restore_with_codeformer(image: Image.Image, fidelity: float = 1.0) -> Image.Image:
     temp_bytes = io.BytesIO()
     image.save(temp_bytes, format="JPEG")
@@ -269,12 +282,12 @@ def classify_scene(image: Image.Image) -> str:
     red_avg = np.mean(np.array(r))
     blue_avg = np.mean(np.array(b))
 
-    if brightness < 55:
+    if brightness > 200:
+        return "overexposed"
+    elif brightness < 55:
         return "night"
     elif blue_avg > red_avg + 20:
         return "cold_white_light"
-    elif brightness > 200:
-        return "overexposed"
     else:
         return "day"
 
@@ -1040,6 +1053,8 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
         faces = face_analyzer.get(img_np)
         face = faces[0] if faces else None
         scene_type = classify_scene(image_idn)
+        if scene_type == "overexposed":
+            image_idn = adjust_overexposed_scene(image_idn)
         skin_tone = analyze_skin_tone(image_idn, face)
 
     # 👁 Улучшаем глаза всем
