@@ -419,7 +419,7 @@ def apply_full_skin_glow_match_eye(image: Image.Image) -> Image.Image:
     
     # Теплый светлый слой (тот самый «глазной»)
     warm_glow = Image.new("RGB", img.size, (255, 230, 200))
-    glow_overlay = Image.blend(img, warm_glow, 0.1)
+    glow_overlay = Image.blend(img, warm_glow, 0.25)
 
     # Повышение яркости и мягкости
     brightened = ImageEnhance.Brightness(glow_overlay).enhance(1.02)
@@ -440,11 +440,11 @@ def apply_full_glow_to_all(image: Image.Image) -> Image.Image:
 
     # Этап 2: Мягкий glow как у глаза
     glow = enhanced.filter(ImageFilter.GaussianBlur(radius=3))
-    enhanced = Image.blend(enhanced, glow, 0.1)  # Уменьшаем интенсивность glow
+    enhanced = Image.blend(enhanced, glow, 0.3)  # Уменьшаем интенсивность glow
 
     # Этап 3: Тёплый персиковый налёт
     overlay = Image.new("RGB", img.size, (255, 240, 225))
-    final = Image.blend(enhanced, overlay, 0.1)  # Уменьшаем интенсивность оверлея
+    final = Image.blend(enhanced, overlay, 0.05)  # Уменьшаем интенсивность оверлея
 
     return final
 
