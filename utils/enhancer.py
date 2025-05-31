@@ -440,7 +440,7 @@ def apply_full_glow_to_all(image: Image.Image) -> Image.Image:
 
     # Этап 2: Мягкий glow как у глаза
     glow = enhanced.filter(ImageFilter.GaussianBlur(radius=3))
-    enhanced = Image.blend(enhanced, glow, 0.3)  # Уменьшаем интенсивность glow
+    enhanced = Image.blend(enhanced, glow, 0.4)  # Уменьшаем интенсивность glow
 
     # Этап 3: Тёплый персиковый налёт
     overlay = Image.new("RGB", img.size, (255, 240, 225))
@@ -453,7 +453,7 @@ def apply_true_eye_glow_to_all(image: Image.Image) -> Image.Image:
     img = image.copy()
 
     # Снижаем начальную яркость
-    bright = ImageEnhance.Brightness(img).enhance(0.97)
+    bright = ImageEnhance.Brightness(img).enhance(1.1)
     contrast = ImageEnhance.Contrast(bright).enhance(1.15)
 
     # Мягкий glow
@@ -628,12 +628,12 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
     # Базовое улучшение в зависимости от сцены
     if scene_type == "day":
         # Дневная обработка
-        img = ImageEnhance.Brightness(img).enhance(0.97)
+        img = ImageEnhance.Brightness(img).enhance(1.1)
         img = ImageEnhance.Contrast(img).enhance(1.08)
         
         # Легкий теплый оттенок
         overlay = Image.new('RGB', img.size, (255, 253, 250))
-        img = Image.blend(img, overlay, 0.03)
+        img = Image.blend(img, overlay, 0.05)
         
     elif is_club_lighting:
         # Клубное освещение - уменьшаем яркость, чтобы избежать шума
