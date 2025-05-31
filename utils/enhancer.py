@@ -16,6 +16,17 @@ import onnxruntime
 # Инициализация моделей
 # =============================================================================
 
+def adjust_overexposed_scene(image: Image.Image) -> Image.Image:
+    # Снижаем яркость, чтобы убрать засвет
+    image = ImageEnhance.Brightness(image).enhance(0.75)
+
+    # Повышаем контрастность, чтобы вернуть детализацию
+    image = ImageEnhance.Contrast(image).enhance(1.3)
+
+    # Повышаем насыщенность (цветовую красочность)
+    image = ImageEnhance.Color(image).enhance(1.2)
+
+    return image
 
 def adjust_overexposed_scene(image: Image.Image) -> Image.Image:
     enhancer = ImageEnhance.Brightness(image)
