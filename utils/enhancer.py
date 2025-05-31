@@ -638,14 +638,14 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
     elif is_club_lighting:
         # Клубное освещение - уменьшаем яркость, чтобы избежать шума
         img = ImageEnhance.Brightness(img).enhance(0.9)
-        img = ImageEnhance.Contrast(img).enhance(1.12)
+        img = ImageEnhance.Contrast(img).enhance(1.2)
         overlay = Image.new("RGB", img.size, (255, 235, 210))
         img = Image.blend(img, overlay, 0.1)
         
     else:
         # Ночная обработка - мягче
         img = ImageEnhance.Brightness(img).enhance(0.9)
-        img = ImageEnhance.Contrast(img).enhance(1.08)
+        img = ImageEnhance.Contrast(img).enhance(1.2)
         overlay = Image.new("RGB", img.size, (255, 235, 215))
         img = Image.blend(img, overlay, 0.1)
     
