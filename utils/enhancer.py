@@ -440,7 +440,7 @@ def apply_full_glow_to_all(image: Image.Image) -> Image.Image:
 
     # Этап 2: Мягкий glow как у глаза
     glow = enhanced.filter(ImageFilter.GaussianBlur(radius=3))
-    enhanced = Image.blend(enhanced, glow, 0.2)  # Уменьшаем интенсивность glow
+    enhanced = Image.blend(enhanced, glow, 0.5)  # Уменьшаем интенсивность glow
 
     # Этап 3: Тёплый персиковый налёт
     overlay = Image.new("RGB", img.size, (255, 240, 225))
@@ -462,7 +462,7 @@ def apply_true_eye_glow_to_all(image: Image.Image) -> Image.Image:
 
     # Теплый оверлей
     overlay = Image.new("RGB", img.size, (255, 240, 225))
-    final = Image.blend(blended, overlay, 0.03)
+    final = Image.blend(blended, overlay, 0.1)
 
     # Восстановление четкости
     final = final.filter(ImageFilter.UnsharpMask(radius=1.2, percent=120, threshold=3))
@@ -612,6 +612,51 @@ def apply_scenario(image: Image.Image, face_data, scene_type: str) -> Image.Imag
 
     return img
 
+def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day") -> Image.Image:
+    """Улучшение всего изображения равномерно."""
+    img = image.copy()
+    
+    # Определяем тип освещения для всей сцены
+    is_club_lighting = False
+    if scene_type == "night":
+        r, g, b = img.split()
+        r_mean = np.mean(np.array(r))
+        g_mean = np.mean(np.array(g))
+        b_mean = np.mean(np.array(b))
+        is_club_lighting = b_mean > (r_mean + g_mean) / 2 + 10
+    
+    # Базовое улучшение в зависимости от сцены
+    if scene_type == "day":
+        # Дневная обработка
+        img = ImageEnhance.Brightness(img).enhance(0.97)
+        img = ImageEnhance.Contrast(img).enhance(1.08)
+        
+        # Легкий теплый оттенок
+        overlay = Image.new('RGB', img.size, (255, 253, 250))
+        img = Image.blend(img, overlay, 0.03)
+        
+    elif is_club_lighting:
+        # Клубное освещение - уменьшаем яркость, чтобы избежать шума
+        img = ImageEnhance.Brightness(img).enhance(1.02)
+        img = ImageEnhance.Contrast(img).enhance(1.12)
+        
+    else:
+        # Ночная обработка - мягче
+        img = ImageEnhance.Brightness(img).enhance(1.04)
+        img = ImageEnhance.Contrast(img).enhance(1.08)
+    
+    # Финальные штрихи без масок
+    if scene_type == "day":
+        img = img.filter(ImageFilter.UnsharpMask(radius=1.5, percent=105, threshold=3))
+    elif is_club_lighting:
+        # Для клубных фото - только цвет
+        img = ImageEnhance.Color(img).enhance(1.05)
+    else:
+        # Для ночных - минимальная резкость
+        img = img.filter(ImageFilter.UnsharpMask(radius=2, percent=105, threshold=4))
+    
+    return img
+
 def apply_final_polish(image: Image.Image) -> Image.Image:
     """Финальная обработка изображения."""
     img = image.copy()
@@ -624,7 +669,8 @@ def apply_final_polish(image: Image.Image) -> Image.Image:
     elif avg_brightness > 140:
         img = ImageEnhance.Brightness(img).enhance(0.95)
     elif avg_brightness < 60:
-        img = ImageEnhance.Brightness(img).enhance(1.08)
+        # Для темных фото - более мягкое осветление
+        img = ImageEnhance.Brightness(img).enhance(1.04)
     
     # Умеренное усиление контраста
     img = ImageEnhance.Contrast(img).enhance(1.06)
@@ -632,11 +678,12 @@ def apply_final_polish(image: Image.Image) -> Image.Image:
     # Легкое усиление цвета
     img = ImageEnhance.Color(img).enhance(1.08)
 
-    # Очень легкая резкость только для ярких фото
+    # Очень легкая резкость
     if avg_brightness > 140:
         sharpness = 1.08
     else:
-        sharpness = 1.12
+        # Для темных фото уменьшаем резкость
+        sharpness = 1.06
     img = ImageEnhance.Sharpness(img).enhance(sharpness)
 
     # Финальный теплый оттенок
@@ -808,49 +855,6 @@ def normalize_skin_tone(face_region: Image.Image) -> Image.Image:
         return Image.composite(enhanced, face_region, mask)
     
     return face_region
-
-def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day") -> Image.Image:
-    """Улучшение всего изображения равномерно."""
-    img = image.copy()
-    
-    # Определяем тип освещения для всей сцены
-    is_club_lighting = False
-    if scene_type == "night":
-        r, g, b = img.split()
-        r_mean = np.mean(np.array(r))
-        g_mean = np.mean(np.array(g))
-        b_mean = np.mean(np.array(b))
-        is_club_lighting = b_mean > (r_mean + g_mean) / 2 + 10
-    
-    # Базовое улучшение в зависимости от сцены
-    if scene_type == "day":
-        # Дневная обработка
-        img = ImageEnhance.Brightness(img).enhance(0.97)
-        img = ImageEnhance.Contrast(img).enhance(1.08)
-        
-        # Легкий теплый оттенок
-        overlay = Image.new('RGB', img.size, (255, 253, 250))
-        img = Image.blend(img, overlay, 0.03)
-        
-    elif is_club_lighting:
-        # Клубное освещение
-        img = ImageEnhance.Brightness(img).enhance(1.05)
-        img = ImageEnhance.Contrast(img).enhance(1.15)
-        
-    else:
-        # Ночная обработка
-        img = ImageEnhance.Brightness(img).enhance(1.08)
-        img = ImageEnhance.Contrast(img).enhance(1.12)
-    
-    # Финальные штрихи без масок - уменьшаем резкость
-    if scene_type == "day":
-        img = img.filter(ImageFilter.UnsharpMask(radius=1.5, percent=105, threshold=3))
-    elif is_club_lighting:
-        img = ImageEnhance.Color(img).enhance(1.08)
-    else:
-        img = img.filter(ImageFilter.UnsharpMask(radius=1.5, percent=110, threshold=3))
-    
-    return img
 
 def create_person_mask(image: Image.Image, face_data) -> Image.Image:
     """Создание маски для области человека (голова, тело, волосы)."""
