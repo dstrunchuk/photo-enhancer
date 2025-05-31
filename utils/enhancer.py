@@ -440,11 +440,11 @@ def apply_full_glow_to_all(image: Image.Image) -> Image.Image:
 
     # Этап 2: Мягкий glow как у глаза
     glow = enhanced.filter(ImageFilter.GaussianBlur(radius=3))
-    enhanced = Image.blend(enhanced, glow, 0.5)  # Уменьшаем интенсивность glow
+    enhanced = Image.blend(enhanced, glow, 0.7)  # Уменьшаем интенсивность glow
 
     # Этап 3: Тёплый персиковый налёт
     overlay = Image.new("RGB", img.size, (255, 240, 225))
-    final = Image.blend(enhanced, overlay, 0.03)  # Уменьшаем интенсивность оверлея
+    final = Image.blend(enhanced, overlay, 0.1)  # Уменьшаем интенсивность оверлея
 
     return final
 
