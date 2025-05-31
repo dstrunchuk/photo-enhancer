@@ -640,16 +640,16 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
         img = ImageEnhance.Brightness(img).enhance(0.9)
         img = ImageEnhance.Contrast(img).enhance(1.2)
         overlay = Image.new("RGB", img.size, (255, 235, 210))
-        img = ImageChops.screen(img, overlay)
-        img = ImageEnhance.Color(img).enhance(1.05)
+        img = Image.blend(img, overlay, 0.06)
+        img = ImageEnhance.Color(img).enhance(1.08)
         
     else:
         # Ночная обработка - мягче
         img = ImageEnhance.Brightness(img).enhance(0.9)
         img = ImageEnhance.Contrast(img).enhance(1.2)
         overlay = Image.new("RGB", img.size, (255, 235, 215))
-        img = ImageChops.screen(img, overlay)
-        img = ImageEnhance.Color(img).enhance(1.05)
+        img = Image.blend(img, overlay, 0.06)
+        img = ImageEnhance.Color(img).enhance(1.08)
     
     # Финальные штрихи без масок
     if scene_type == "day":
