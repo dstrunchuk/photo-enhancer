@@ -628,8 +628,8 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
     # Базовое улучшение в зависимости от сцены
     if scene_type == "day":
         # Дневная обработка
-        img = ImageEnhance.Brightness(img).enhance(1.1)
-        img = ImageEnhance.Contrast(img).enhance(1.08)
+        img = ImageEnhance.Brightness(img).enhance(1)
+        img = ImageEnhance.Contrast(img).enhance(1.1)
         
         # Легкий теплый оттенок
         overlay = Image.new('RGB', img.size, (255, 253, 250))
