@@ -16,39 +16,24 @@ import onnxruntime
 # Инициализация моделей
 # =============================================================================
 
-def adjust_body_tone(image: Image.Image, face_bbox: tuple) -> Image.Image:
-    """Добавление контраста, насыщенности и снижение яркости вне лица"""
-    # Преобразуем в numpy
-    img_np = np.array(image)
-    mask = np.ones(img_np.shape[:2], dtype=np.uint8) * 255
-
-    # Если есть лицо — маскируем его
-    if face_bbox:
+def adjust_body_tone(image: Image.Image, face_bbox) -> Image.Image:
+    if face_bbox and len(face_bbox) == 4:
         x1, y1, x2, y2 = map(int, face_bbox)
-        mask[y1:y2, x1:x2] = 0  # 0 в области лица
+        face_mask = Image.new("L", image.size, 0)
+        draw = ImageDraw.Draw(face_mask)
+        draw.rectangle([x1, y1, x2, y2], fill=255)
 
-    # Создаём три канала маски
-    mask_3ch = np.stack([mask]*3, axis=-1)
+        # Инвертируем маску — чтобы применять вне лица
+        inverted_mask = ImageOps.invert(face_mask)
 
-    # Конвертируем image в RGB, если нужно
-    image = image.convert("RGB")
+        # Создаем версию изображения с усиленной насыщенностью, контрастом и пониженной яркостью
+        enhanced = ImageEnhance.Color(image).enhance(1.15)
+        enhanced = ImageEnhance.Contrast(enhanced).enhance(1.1)
+        enhanced = ImageEnhance.Brightness(enhanced).enhance(0.95)
 
-    # Создаём улучшенные версии
-    enhancer_contrast = ImageEnhance.Contrast(image)
-    contrast_img = enhancer_contrast.enhance(1.1)  # немного больше контраста
-
-    enhancer_color = ImageEnhance.Color(contrast_img)
-    color_img = enhancer_color.enhance(1.1)  # чуть ярче цвета
-
-    enhancer_brightness = ImageEnhance.Brightness(color_img)
-    final_img = enhancer_brightness.enhance(0.95)  # немного темнее
-
-    # Смешиваем: лицо берём из оригинала, остальное — из улучшенного
-    final_np = np.array(final_img)
-    orig_np = np.array(image)
-    blended = np.where(mask_3ch == 0, orig_np, final_np)
-
-    return Image.fromarray(blended)
+        # Комбинируем: лицо оставляем как есть, остальное заменяем на усиленное
+        return Image.composite(enhanced, image, inverted_mask)
+    return image
 
 def adjust_overexposed_scene(image: Image.Image) -> Image.Image:
     # Снижаем яркость, чтобы убрать засвет
