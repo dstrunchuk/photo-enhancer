@@ -100,18 +100,33 @@
           body: formData
         });
 
-        if (!response.ok) throw new Error("Ошибка обработки");
+        if (!response.ok) throw new Error("Ошибка при обработке фото");
 
         const blob = await response.blob();
+
+        if (!blob.type.startsWith("image/")) {
+          throw new Error("Сервер вернул не изображение");
+        }
+
         const reader = new FileReader();
         reader.onloadend = function () {
-          sessionStorage.setItem("resultImage", reader.result);
+          const result = reader.result;
+          if (!result || typeof result !== "string") {
+           alert("Не удалось прочитать изображение.");
+            loading.style.display = "none";
+            return;
+          }
+
+          sessionStorage.setItem("resultImage", result);
           window.location.href = "result.html";
         };
-        reader.readAsDataURL(blob);  // Преобразует в base64
+        reader.onerror = function () {
+          alert("Ошибка при чтении изображения.");
+          loading.style.display = "none";
+        };
+        reader.readAsDataURL(blob);
       } catch (err) {
         alert("Ошибка: " + err.message);
-      } finally {
         loading.style.display = "none";
       }
     }
