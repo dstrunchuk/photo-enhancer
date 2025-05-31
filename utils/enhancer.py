@@ -632,11 +632,11 @@ def apply_final_polish(image: Image.Image) -> Image.Image:
     # Легкое усиление цвета
     img = ImageEnhance.Color(img).enhance(1.08)
 
-    # Адаптивная резкость
+    # Очень легкая резкость только для ярких фото
     if avg_brightness > 140:
-        sharpness = 1.15
+        sharpness = 1.08
     else:
-        sharpness = 1.25
+        sharpness = 1.12
     img = ImageEnhance.Sharpness(img).enhance(sharpness)
 
     # Финальный теплый оттенок
@@ -842,13 +842,13 @@ def enhance_person_region(image: Image.Image, face_data, scene_type: str = "day"
         img = ImageEnhance.Brightness(img).enhance(1.08)
         img = ImageEnhance.Contrast(img).enhance(1.12)
     
-    # Финальные штрихи без масок
+    # Финальные штрихи без масок - уменьшаем резкость
     if scene_type == "day":
-        img = img.filter(ImageFilter.UnsharpMask(radius=1, percent=115, threshold=3))
+        img = img.filter(ImageFilter.UnsharpMask(radius=1.5, percent=105, threshold=3))
     elif is_club_lighting:
         img = ImageEnhance.Color(img).enhance(1.08)
     else:
-        img = img.filter(ImageFilter.UnsharpMask(radius=1, percent=120, threshold=3))
+        img = img.filter(ImageFilter.UnsharpMask(radius=1.5, percent=110, threshold=3))
     
     return img
 
@@ -1059,7 +1059,7 @@ async def enhance_image_remini(image_bytes: bytes) -> bytes:
 
         # Сохраняем результат
         final_bytes = io.BytesIO()
-        enhanced_image.save(final_bytes, format="JPEG", quality=95, subsampling=0)
+        enhanced_image.save(final_bytes, format="JPEG", quality=100, subsampling=0)
         final_bytes.seek(0)
 
         os.remove(temp_filename)
