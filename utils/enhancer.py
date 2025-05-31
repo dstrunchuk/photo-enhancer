@@ -16,6 +16,40 @@ import onnxruntime
 # Инициализация моделей
 # =============================================================================
 
+def adjust_body_tone(image: Image.Image, face_bbox: tuple) -> Image.Image:
+    """Добавление контраста, насыщенности и снижение яркости вне лица"""
+    # Преобразуем в numpy
+    img_np = np.array(image)
+    mask = np.ones(img_np.shape[:2], dtype=np.uint8) * 255
+
+    # Если есть лицо — маскируем его
+    if face_bbox:
+        x1, y1, x2, y2 = map(int, face_bbox)
+        mask[y1:y2, x1:x2] = 0  # 0 в области лица
+
+    # Создаём три канала маски
+    mask_3ch = np.stack([mask]*3, axis=-1)
+
+    # Конвертируем image в RGB, если нужно
+    image = image.convert("RGB")
+
+    # Создаём улучшенные версии
+    enhancer_contrast = ImageEnhance.Contrast(image)
+    contrast_img = enhancer_contrast.enhance(1.1)  # немного больше контраста
+
+    enhancer_color = ImageEnhance.Color(contrast_img)
+    color_img = enhancer_color.enhance(1.1)  # чуть ярче цвета
+
+    enhancer_brightness = ImageEnhance.Brightness(color_img)
+    final_img = enhancer_brightness.enhance(0.95)  # немного темнее
+
+    # Смешиваем: лицо берём из оригинала, остальное — из улучшенного
+    final_np = np.array(final_img)
+    orig_np = np.array(image)
+    blended = np.where(mask_3ch == 0, orig_np, final_np)
+
+    return Image.fromarray(blended)
+
 def adjust_overexposed_scene(image: Image.Image) -> Image.Image:
     # Снижаем яркость, чтобы убрать засвет
     image = ImageEnhance.Brightness(image).enhance(0.75)
@@ -1083,7 +1117,7 @@ async def enhance_image(image_bytes: bytes, user_prompt: str = "") -> bytes:
 
             image_idn = apply_full_glow_to_all(image_idn)
             image_idn = apply_true_eye_glow_to_all(image_idn)
-            
+            image_idn = adjust_body_tone(image_idn, face.bbox)
 
     # Финальное улучшение
         final_image = enhance_person_region(image_idn, face, "day" if scene_type != "night" else "evening")
