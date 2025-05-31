@@ -17,22 +17,26 @@ import onnxruntime
 # =============================================================================
 
 def adjust_body_tone(image: Image.Image, face_bbox) -> Image.Image:
-    if face_bbox and len(face_bbox) == 4:
+    # Проверка на None и правильную длину
+    if face_bbox is not None and len(face_bbox) == 4:
+        # Если bbox — NumPy массив, преобразуем в список
+        if hasattr(face_bbox, 'tolist'):
+            face_bbox = face_bbox.tolist()
+
         x1, y1, x2, y2 = map(int, face_bbox)
+
         face_mask = Image.new("L", image.size, 0)
         draw = ImageDraw.Draw(face_mask)
         draw.rectangle([x1, y1, x2, y2], fill=255)
 
-        # Инвертируем маску — чтобы применять вне лица
         inverted_mask = ImageOps.invert(face_mask)
 
-        # Создаем версию изображения с усиленной насыщенностью, контрастом и пониженной яркостью
         enhanced = ImageEnhance.Color(image).enhance(1.15)
         enhanced = ImageEnhance.Contrast(enhanced).enhance(1.1)
         enhanced = ImageEnhance.Brightness(enhanced).enhance(0.95)
 
-        # Комбинируем: лицо оставляем как есть, остальное заменяем на усиленное
         return Image.composite(enhanced, image, inverted_mask)
+
     return image
 
 def adjust_overexposed_scene(image: Image.Image) -> Image.Image:
