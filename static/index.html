@@ -103,10 +103,12 @@
         if (!response.ok) throw new Error("Ошибка обработки");
 
         const blob = await response.blob();
-        const imageUrl = URL.createObjectURL(blob);
-
-        sessionStorage.setItem("resultImage", imageUrl);
-        window.location.href = "result.html";
+        const reader = new FileReader();
+        reader.onloadend = function () {
+          sessionStorage.setItem("resultImage", reader.result);
+          window.location.href = "result.html";
+        };
+        reader.readAsDataURL(blob);  // Преобразует в base64
       } catch (err) {
         alert("Ошибка: " + err.message);
       } finally {
