@@ -81,43 +81,54 @@
     }
 
     async function uploadPhoto() {
-      const input = document.getElementById("fileInput");
-      const loading = document.getElementById("loading");
+    const input = document.getElementById("fileInput");
+    const loading = document.getElementById("loading");
 
-      if (!input.files[0]) {
-        alert("Пожалуйста, выберите фото");
-        return;
-      }
-
-      loading.style.display = "flex";
-
-      const formData = new FormData();
-      formData.append("file", input.files[0]);
-
-      try {
-        const response = await fetch("/upload/", {
-          method: "POST",
-          body: formData
-        });
-
-        if (!response.ok) throw new Error("Ошибка обработки");
-
-        const blob = await response.blob();
-        console.log("Размер blob:", blob.size);
-        const reader = new FileReader();
-        reader.onloadend = function () {
-          sessionStorage.setItem("resultImage", url);
-          console.log("Готов к переходу");
-          window.location.href = "result.html";
-          window.location.href = "result.html";
-        };
-        reader.readAsDataURL(blob);  // Преобразует в base64
-      } catch (err) {
-        alert("Ошибка: " + err.message);
-      } finally {
-        loading.style.display = "none";
-      }
+    if (!input.files[0]) {
+      alert("Пожалуйста, выберите фото");
+      return;
     }
+
+    loading.style.display = "flex";
+
+    const formData = new FormData();
+    formData.append("file", input.files[0]);
+
+    try {
+      const response = await fetch("/upload/", {
+        method: "POST",
+        body: formData
+      });
+
+      console.log("Ответ получен:", response.status);
+
+      if (!response.ok) throw new Error("Ошибка обработки");
+
+      const blob = await response.blob();
+      console.log("Размер полученного blob:", blob.size);
+
+      if (blob.size === 0) {
+        throw new Error("Пустой результат. Сервер вернул пустое изображение.");
+      }
+
+      const url = URL.createObjectURL(blob);
+      console.log("Созданный URL:", url);
+
+      sessionStorage.setItem("resultImage", url);
+      console.log("sessionStorage записан");
+
+      setTimeout(() => {
+        console.log("Переход на result.html...");
+        window.location.href = "result.html";
+      }, 200);
+
+    } catch (err) {
+      alert("Ошибка: " + err.message);
+      console.error("uploadPhoto error:", err);
+    } finally {
+      loading.style.display = "none";
+    }
+  }
   </script>
 </body>
 </html>
