@@ -103,9 +103,12 @@
         if (!response.ok) throw new Error("Ошибка обработки");
 
         const blob = await response.blob();
+        console.log("Размер blob:", blob.size);
         const reader = new FileReader();
         reader.onloadend = function () {
-          sessionStorage.setItem("resultImage", reader.result);
+          sessionStorage.setItem("resultImage", url);
+          console.log("Готов к переходу");
+          window.location.href = "result.html";
           window.location.href = "result.html";
         };
         reader.readAsDataURL(blob);  // Преобразует в base64
