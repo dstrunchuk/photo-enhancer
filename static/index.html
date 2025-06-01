@@ -100,31 +100,15 @@
         body: formData
       });
 
-      console.log("Ответ получен:", response.status);
-
       if (!response.ok) throw new Error("Ошибка обработки");
 
       const blob = await response.blob();
-      console.log("Размер полученного blob:", blob.size);
-
-      if (blob.size === 0) {
-        throw new Error("Пустой результат. Сервер вернул пустое изображение.");
-      }
-
-      const url = URL.createObjectURL(blob);
-      console.log("Созданный URL:", url);
+      const url = URL.createObjectURL(blob); // 💡 стабильнее, чем FileReader
 
       sessionStorage.setItem("resultImage", url);
-      console.log("sessionStorage записан");
-
-      setTimeout(() => {
-        console.log("Переход на result.html...");
-        window.location.href = "result.html";
-      }, 200);
-
+      window.location.href = "result.html";
     } catch (err) {
-      alert("Ошибка: " + err.message);
-      console.error("uploadPhoto error:", err);
+    alert("Ошибка: " + err.message);
     } finally {
       loading.style.display = "none";
     }
