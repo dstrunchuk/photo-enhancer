@@ -14,7 +14,6 @@
 
   <div class="result-content">
     <img id="toggleImage" src="" alt="Фото" class="result-img" onclick="openFullscreen()" />
-    
     <button id="toggleBtn" onclick="toggleImage()">Показать ДО</button>
     <button class="download-btn" onclick="sendToTelegram()">Скачать в Telegram</button>
   </div>
@@ -28,17 +27,20 @@
 
   <script>
     Telegram.WebApp.ready();
+
     const beforeUrl = sessionStorage.getItem("previewImage");
     const afterUrl = sessionStorage.getItem("resultImage");
-
     const img = document.getElementById("toggleImage");
     const btn = document.getElementById("toggleBtn");
-    const download = document.getElementById("downloadBtn");
 
     let showingAfter = true;
 
-    img.src = afterUrl;
-    download.href = afterUrl;
+    if (!afterUrl) {
+      alert("⚠️ Не удалось загрузить фото. Попробуйте снова.");
+      window.location.href = "index.html";
+    } else {
+      img.src = afterUrl;
+    }
 
     function toggleImage() {
       showingAfter = !showingAfter;
@@ -57,46 +59,9 @@
       window.location.href = `fullscreen.html?mode=${mode}`;
     }
 
-    function downloadProcessed() {
-      const url = sessionStorage.getItem("resultImage");
-      if (!url) {
-        alert("Фото не найдено");
-        return;
-      }
-
-      fetch(url)
-        .then(res => res.blob())
-        .then(blob => {
-          const filename = "ai-foto.jpg";
-
-      // Fallback для старых Android WebView
-          if (window.navigator && window.navigator.msSaveOrOpenBlob) {
-            window.navigator.msSaveOrOpenBlob(blob, filename);
-          } else {
-            const link = document.createElement("a");
-            const blobUrl = window.URL.createObjectURL(blob);
-            link.href = blobUrl;
-            link.download = filename;
-
-        // Пробуем кликнуть
-            try {
-              link.click();
-            } catch {
-              alert("Нажмите и удерживайте фото, чтобы сохранить.");
-              window.open(blobUrl, "_blank");
-            }
-
-        // Чистим
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-          }
-        })
-        .catch(() => {
-          alert("Ошибка при скачивании. Возможно, устройство блокирует загрузку.");
-        });
-    }
     async function sendToTelegram() {
       const chatId = Telegram.WebApp.initDataUnsafe?.user?.id;
-      const response = await fetch(sessionStorage.getItem("resultImage"));
+      const response = await fetch(afterUrl);
       const blob = await response.blob();
 
       const formData = new FormData();
@@ -104,7 +69,7 @@
       formData.append("chat_id", chatId);
 
       const sendingIndicator = document.getElementById("sending");
-      sendingIndicator.style.display = "block"; // Показать "отправляем..."
+      sendingIndicator.style.display = "block";
 
       try {
         const res = await fetch("/send_photo_upload", {
@@ -113,7 +78,6 @@
         });
 
         const data = await res.json();
-
         if (res.ok && data?.ok) {
           Telegram.WebApp.showAlert("✅ Фото отправлено в Telegram.");
         } else {
@@ -122,7 +86,7 @@
       } catch {
         Telegram.WebApp.showAlert("❌ Ошибка соединения с сервером.");
       } finally {
-        sendingIndicator.style.display = "none"; // Скрыть после завершения
+        sendingIndicator.style.display = "none";
       }
     }
   </script>
