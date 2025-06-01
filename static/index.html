@@ -103,12 +103,17 @@
       if (!response.ok) throw new Error("Ошибка обработки");
 
       const blob = await response.blob();
-      const url = URL.createObjectURL(blob); // 💡 стабильнее, чем FileReader
+      const url = URL.createObjectURL(blob);
 
       sessionStorage.setItem("resultImage", url);
-      window.location.href = "result.html";
+
+    // 🔧 iOS-friendly переход
+      setTimeout(() => {
+        window.location.href = "result.html";
+     }, 0);
+    
     } catch (err) {
-    alert("Ошибка: " + err.message);
+      alert("Ошибка: " + err.message);
     } finally {
       loading.style.display = "none";
     }
