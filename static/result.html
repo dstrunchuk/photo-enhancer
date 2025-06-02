@@ -30,12 +30,13 @@
 
     const beforeUrl = sessionStorage.getItem("previewImage");
     const afterUrl = sessionStorage.getItem("resultImage");
+    const previewUrl = sessionStorage.getItem("resultImagePreview");
     const img = document.getElementById("toggleImage");
     const btn = document.getElementById("toggleBtn");
 
     let showingAfter = true;
 
-    if (!afterUrl) {
+    if (!afterUrl && !previewUrl) {
       alert("⚠️ Не удалось загрузить фото. Попробуйте снова.");
       if (Telegram.WebApp.platform === 'ios') {
         window.location.replace('index.html');
@@ -43,13 +44,21 @@
         window.location.href = 'index.html';
       }
     } else {
-      img.src = afterUrl;
+      if (Telegram.WebApp.platform === 'ios' && previewUrl) {
+        img.src = previewUrl;
+      } else {
+        img.src = afterUrl;
+      }
     }
 
     function toggleImage() {
       showingAfter = !showingAfter;
       img.classList.add("fade");
-      img.src = showingAfter ? afterUrl : beforeUrl;
+      if (Telegram.WebApp.platform === 'ios' && previewUrl) {
+        img.src = showingAfter ? previewUrl : beforeUrl;
+      } else {
+        img.src = showingAfter ? afterUrl : beforeUrl;
+      }
       btn.innerText = showingAfter ? "Показать ДО" : "Показать ПОСЛЕ";
       setTimeout(() => img.classList.remove("fade"), 200);
     }
@@ -69,11 +78,29 @@
 
     async function sendToTelegram() {
       const chatId = Telegram.WebApp.initDataUnsafe?.user?.id;
-      const response = await fetch(afterUrl);
-      const blob = await response.blob();
+      
+      // Для iOS делаем новый запрос к серверу для получения оригинального качества
+      let imageBlob;
+      if (Telegram.WebApp.platform === 'ios') {
+        try {
+          const response = await fetch("/upload/", {
+            method: "POST",
+            body: new FormData(document.createElement('form'))
+          });
+          if (!response.ok) throw new Error();
+          imageBlob = await response.blob();
+        } catch {
+          Telegram.WebApp.showAlert("❌ Ошибка получения фото.");
+          return;
+        }
+      } else {
+        // Для других платформ используем существующий URL
+        const response = await fetch(afterUrl);
+        imageBlob = await response.blob();
+      }
 
       const formData = new FormData();
-      formData.append("file", blob, "ai-foto.jpg");
+      formData.append("file", imageBlob, "ai-foto.jpg");
       formData.append("chat_id", chatId);
 
       const sendingIndicator = document.getElementById("sending");
