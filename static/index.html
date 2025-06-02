@@ -103,17 +103,20 @@
       if (!response.ok) throw new Error("Ошибка обработки");
 
       const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
       
-      // Сохраняем оригинальный blob для iOS
-      const processedBlob = await blob.slice(0, blob.size, blob.type);
-      sessionStorage.setItem("processedBlob", await blobToBase64(processedBlob));
-      sessionStorage.setItem("resultImage", url);
+      // Сохраняем response для повторного получения на странице результата
+      sessionStorage.setItem("processedImageResponse", JSON.stringify({
+        type: blob.type,
+        size: blob.size,
+        lastModified: new Date().getTime()
+      }));
       
       // iOS-friendly navigation
       if (Telegram.WebApp.platform === 'ios') {
         window.location.replace('result.html');
       } else {
+        const url = URL.createObjectURL(blob);
+        sessionStorage.setItem("resultImage", url);
         window.location.href = 'result.html';
       }
 
