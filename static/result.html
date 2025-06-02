@@ -30,36 +30,18 @@
 
     const beforeUrl = sessionStorage.getItem("previewImage");
     const afterUrl = sessionStorage.getItem("resultImage");
-    const processedImageData = JSON.parse(sessionStorage.getItem("processedImageResponse"));
     const img = document.getElementById("toggleImage");
     const btn = document.getElementById("toggleBtn");
 
     let showingAfter = true;
 
-    async function loadProcessedImage() {
-      try {
-        const response = await fetch("/upload/", {
-          method: "POST",
-          body: new FormData(document.createElement('form'))
-        });
-        
-        if (!response.ok) throw new Error("Ошибка загрузки");
-        
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        img.src = url;
-        sessionStorage.setItem("resultImage", url);
-      } catch (err) {
-        alert("⚠️ Не удалось загрузить фото. Попробуйте снова.");
-        window.location.href = "index.html";
-      }
-    }
-
-    if (Telegram.WebApp.platform === 'ios') {
-      loadProcessedImage();
-    } else if (!afterUrl) {
+    if (!afterUrl) {
       alert("⚠️ Не удалось загрузить фото. Попробуйте снова.");
-      window.location.href = "index.html";
+      if (Telegram.WebApp.platform === 'ios') {
+        window.location.replace('index.html');
+      } else {
+        window.location.href = 'index.html';
+      }
     } else {
       img.src = afterUrl;
     }
@@ -67,7 +49,7 @@
     function toggleImage() {
       showingAfter = !showingAfter;
       img.classList.add("fade");
-      img.src = showingAfter ? (afterUrl || img.src) : beforeUrl;
+      img.src = showingAfter ? afterUrl : beforeUrl;
       btn.innerText = showingAfter ? "Показать ДО" : "Показать ПОСЛЕ";
       setTimeout(() => img.classList.remove("fade"), 200);
     }
