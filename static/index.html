@@ -106,12 +106,15 @@
       const url = URL.createObjectURL(blob);
 
       sessionStorage.setItem("resultImage", url);
+      
+      // Используем MainButton для навигации
+      Telegram.WebApp.MainButton.setText('Перейти к результату');
+      Telegram.WebApp.MainButton.show();
+      Telegram.WebApp.MainButton.onClick(() => {
+        sessionStorage.setItem('navigating', 'true');
+        window.location.replace('result.html');
+      });
 
-    // 🔧 iOS-friendly переход
-      setTimeout(() => {
-        window.location.href = "result.html";
-     }, 0);
-    
     } catch (err) {
       alert("Ошибка: " + err.message);
     } finally {
