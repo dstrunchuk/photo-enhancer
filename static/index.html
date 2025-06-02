@@ -105,8 +105,6 @@
         const blob = await response.blob();
         const imageUrl = URL.createObjectURL(blob);
 
-        // Сохраняем оригинальный файл для отправки
-        sessionStorage.setItem("originalFile", await blobToBase64(blob));
         sessionStorage.setItem("resultImage", imageUrl);
         window.location.href = "result.html";
       } catch (err) {
@@ -114,16 +112,6 @@
       } finally {
         loading.style.display = "none";
       }
-    }
-
-    // Вспомогательная функция для конвертации Blob в base64
-    function blobToBase64(blob) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
     }
   </script>
 </body>
