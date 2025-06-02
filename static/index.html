@@ -107,13 +107,12 @@
 
       sessionStorage.setItem("resultImage", url);
       
-      // Используем MainButton для навигации
-      Telegram.WebApp.MainButton.setText('Перейти к результату');
-      Telegram.WebApp.MainButton.show();
-      Telegram.WebApp.MainButton.onClick(() => {
-        sessionStorage.setItem('navigating', 'true');
+      // iOS-friendly navigation
+      if (Telegram.WebApp.platform === 'ios') {
         window.location.replace('result.html');
-      });
+      } else {
+        window.location.href = 'result.html';
+      }
 
     } catch (err) {
       alert("Ошибка: " + err.message);
