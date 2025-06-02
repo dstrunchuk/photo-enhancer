@@ -130,6 +130,15 @@
         const smallPreview = canvas.toDataURL('image/jpeg', 0.8);
         sessionStorage.setItem("resultImagePreview", smallPreview);
         
+        // Сохраняем оригинальный файл для iOS
+        if (Telegram.WebApp.platform === 'ios') {
+          const reader = new FileReader();
+          reader.onloadend = function() {
+            sessionStorage.setItem("originalFile", reader.result);
+          };
+          reader.readAsDataURL(input.files[0]);
+        }
+        
         // Сохраняем оригинальный URL для не-iOS
         const url = URL.createObjectURL(blob);
         sessionStorage.setItem("resultImage", url);

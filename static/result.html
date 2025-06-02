@@ -73,26 +73,34 @@
 
     function openFullscreen() {
       const mode = showingAfter ? "after" : "before";
+      // Сохраняем текущее изображение для просмотра на весь экран
+      if (mode === "after") {
+        if (Telegram.WebApp.platform === 'ios') {
+          sessionStorage.setItem("fullscreenImage", previewUrl);
+        } else {
+          sessionStorage.setItem("fullscreenImage", afterUrl);
+        }
+      } else {
+        sessionStorage.setItem("fullscreenImage", beforeUrl);
+      }
       window.location.href = `fullscreen.html?mode=${mode}`;
     }
 
     async function sendToTelegram() {
       const chatId = Telegram.WebApp.initDataUnsafe?.user?.id;
       
-      // Для iOS делаем новый запрос к серверу для получения оригинального качества
       let imageBlob;
       if (Telegram.WebApp.platform === 'ios') {
-        try {
-          const response = await fetch("/upload/", {
-            method: "POST",
-            body: new FormData(document.createElement('form'))
-          });
-          if (!response.ok) throw new Error();
-          imageBlob = await response.blob();
-        } catch {
-          Telegram.WebApp.showAlert("❌ Ошибка получения фото.");
+        // Используем сохраненный оригинальный файл
+        const originalFile = sessionStorage.getItem("originalFile");
+        if (!originalFile) {
+          Telegram.WebApp.showAlert("❌ Ошибка: файл не найден");
           return;
         }
+        
+        // Конвертируем base64 обратно в blob
+        const base64Response = await fetch(originalFile);
+        imageBlob = await base64Response.blob();
       } else {
         // Для других платформ используем существующий URL
         const response = await fetch(afterUrl);
