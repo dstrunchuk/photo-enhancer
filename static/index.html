@@ -104,7 +104,10 @@
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-
+      
+      // Сохраняем оригинальный blob для iOS
+      const processedBlob = await blob.slice(0, blob.size, blob.type);
+      sessionStorage.setItem("processedBlob", await blobToBase64(processedBlob));
       sessionStorage.setItem("resultImage", url);
       
       // iOS-friendly navigation
@@ -119,6 +122,16 @@
     } finally {
       loading.style.display = "none";
     }
+  }
+
+  // Вспомогательная функция для конвертации Blob в base64
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   }
   </script>
 </body>

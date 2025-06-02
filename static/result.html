@@ -30,22 +30,31 @@
 
     const beforeUrl = sessionStorage.getItem("previewImage");
     const afterUrl = sessionStorage.getItem("resultImage");
+    const processedBlob = sessionStorage.getItem("processedBlob");
     const img = document.getElementById("toggleImage");
     const btn = document.getElementById("toggleBtn");
 
     let showingAfter = true;
 
-    if (!afterUrl) {
+    if (!afterUrl && !processedBlob) {
       alert("⚠️ Не удалось загрузить фото. Попробуйте снова.");
       window.location.href = "index.html";
     } else {
-      img.src = afterUrl;
+      if (Telegram.WebApp.platform === 'ios' && processedBlob) {
+        img.src = processedBlob;
+      } else {
+        img.src = afterUrl;
+      }
     }
 
     function toggleImage() {
       showingAfter = !showingAfter;
       img.classList.add("fade");
-      img.src = showingAfter ? afterUrl : beforeUrl;
+      if (Telegram.WebApp.platform === 'ios' && processedBlob) {
+        img.src = showingAfter ? processedBlob : beforeUrl;
+      } else {
+        img.src = showingAfter ? afterUrl : beforeUrl;
+      }
       btn.innerText = showingAfter ? "Показать ДО" : "Показать ПОСЛЕ";
       setTimeout(() => img.classList.remove("fade"), 200);
     }
