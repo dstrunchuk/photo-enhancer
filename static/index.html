@@ -81,93 +81,50 @@
     }
 
     async function uploadPhoto() {
-    const input = document.getElementById("fileInput");
-    const loading = document.getElementById("loading");
+      const input = document.getElementById("fileInput");
+      const loading = document.getElementById("loading");
 
-    if (!input.files[0]) {
-      alert("Пожалуйста, выберите фото");
-      return;
+      if (!input.files[0]) {
+        alert("Пожалуйста, выберите фото");
+        return;
+      }
+
+      loading.style.display = "flex";
+
+      const formData = new FormData();
+      formData.append("file", input.files[0]);
+
+      try {
+        const response = await fetch("/upload/", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) throw new Error("Ошибка обработки");
+
+        const blob = await response.blob();
+        const imageUrl = URL.createObjectURL(blob);
+
+        // Сохраняем оригинальный файл для отправки
+        sessionStorage.setItem("originalFile", await blobToBase64(blob));
+        sessionStorage.setItem("resultImage", imageUrl);
+        window.location.href = "result.html";
+      } catch (err) {
+        alert("Ошибка: " + err.message);
+      } finally {
+        loading.style.display = "none";
+      }
     }
 
-    loading.style.display = "flex";
-
-    const formData = new FormData();
-    formData.append("file", input.files[0]);
-
-    try {
-      const response = await fetch("/upload/", {
-        method: "POST",
-        body: formData
+    // Вспомогательная функция для конвертации Blob в base64
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
       });
-
-      if (!response.ok) throw new Error("Ошибка обработки");
-
-      const blob = await response.blob();
-      
-      // Создаем маленькое превью для iOS
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      img.onload = function() {
-        // Уменьшаем размер до максимум 800px по большей стороне
-        let width = img.width;
-        let height = img.height;
-        const maxSize = 800;
-        
-        if (width > height && width > maxSize) {
-          height = (height * maxSize) / width;
-          width = maxSize;
-        } else if (height > maxSize) {
-          width = (width * maxSize) / height;
-          height = maxSize;
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        const smallPreview = canvas.toDataURL('image/jpeg', 0.8);
-        sessionStorage.setItem("resultImagePreview", smallPreview);
-        
-        // Сохраняем оригинальный файл для iOS
-        if (Telegram.WebApp.platform === 'ios') {
-          const reader = new FileReader();
-          reader.onloadend = function() {
-            sessionStorage.setItem("originalFile", reader.result);
-          };
-          reader.readAsDataURL(input.files[0]);
-        }
-        
-        // Сохраняем оригинальный URL для не-iOS
-        const url = URL.createObjectURL(blob);
-        sessionStorage.setItem("resultImage", url);
-        
-        if (Telegram.WebApp.platform === 'ios') {
-          window.location.replace('result.html');
-        } else {
-          window.location.href = 'result.html';
-        }
-      };
-      
-      img.src = URL.createObjectURL(blob);
-
-    } catch (err) {
-      alert("Ошибка: " + err.message);
-    } finally {
-      loading.style.display = "none";
     }
-  }
-
-  // Вспомогательная функция для конвертации Blob в base64
-  function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  }
   </script>
 </body>
 </html>
