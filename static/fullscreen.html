@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <title>Фото</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     body {
       margin: 0;
@@ -46,22 +45,14 @@
   <img id="fullImage" src="" alt="Фото" />
 
   <script>
-    Telegram.WebApp.ready();
-    
-    const fullscreenImage = sessionStorage.getItem("fullscreenImage");
-    if (fullscreenImage) {
-      document.getElementById("fullImage").src = fullscreenImage;
-    } else {
-      alert("⚠️ Ошибка загрузки изображения");
-      goBack();
-    }
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get("mode");
+    const src = sessionStorage.getItem(mode === "before" ? "previewImage" : "resultImage");
+
+    document.getElementById("fullImage").src = src;
 
     function goBack() {
-      if (Telegram.WebApp.platform === 'ios') {
-        window.location.replace('result.html');
-      } else {
-        window.location.href = 'result.html';
-      }
+      window.history.back();
     }
   </script>
 </body>
